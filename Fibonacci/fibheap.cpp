@@ -1,6 +1,5 @@
-#include <bits/stdc++.h>
-using namespace std;
-// Fibonacci Heap with push, pop, top, merge & increase key
+// Fibonacci Heap with push, pop, top (max), merge & increase key
+
 typedef struct FibNode* pnode;
 struct FibNode
 {
@@ -19,6 +18,12 @@ pnode _newnode(int val)
 	//pnode _new = new FibNode();
 	_new->val = val;
 	return _new;
+}
+void swap(pnode &a, pnode &b) // Because why use stl
+{
+	pnode c = a;
+	a = b;
+	b = c;
 }
 struct FibHeap
 {
