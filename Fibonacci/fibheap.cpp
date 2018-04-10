@@ -1,29 +1,25 @@
-// Fibonacci Heap with push, pop, top (max), merge & increase key
+// Fibonacci Heap with push, pop, erase, top (max), merge & increase key
 
 typedef struct FibNode* pnode;
 struct FibNode
 {
-	int val, degree;
+	int val, degree; // Value of the node and number of children
 	bool onechildcut; // Whether one of its children has been cut due to decrease key
-	pnode left, right, child, siblingleft, siblingright, par; // Left and right in the linked list of binomial trees, child, sibling and parent are within a tree
+	pnode left, right, child, par; // When the node is the root of the heap, left and right refer to its neighbours in the heap linked list
+	// When the node is not the root of the heap, left and right refer to its neighbouring siblings
 };
+// Global variables, used for intermediate storage during the pop function
 pnode _ofsize[100];
-int _ofsizedone[100];
-int _ofsizeupto;
-FibNode _heap[20000000];
+int _ofsizedone[100], _ofsizeupto;
+// Nodes are allocated from this array
+FibNode _heap[20000000]; 
 int _heapallocupto;
 pnode _newnode(int val)
 {
 	pnode _new = _heap + _heapallocupto++; // Dynamic allocation is slow ... this is much faster
-	//pnode _new = new FibNode();
+	//pnode _new = new FibNode(); // Other method of allocating memory
 	_new->val = val;
 	return _new;
-}
-void swap(pnode &a, pnode &b) // Because why use stl
-{
-	pnode c = a;
-	a = b;
-	b = c;
 }
 struct FibHeap
 {
@@ -43,7 +39,13 @@ struct FibHeap
 	{
 		return mx->val;
 	}
-	pnode mergetrees(pnode a, pnode b)
+	void swap(pnode &a, pnode &b) // Swaps two pnodes. Created to remove any reliance on STL
+	{
+		pnode c = a;
+		a = b;
+		b = c;
+	}
+	pnode mergetrees(pnode a, pnode b) // Merges trees with equal degree, creating one tree with degree+1
 	{
 		if (b->val > a->val)
 		{
@@ -58,15 +60,16 @@ struct FibHeap
 				a->left = a->right = a;
 			}
 		}
+		// Make tree b the child of tree a
 		a->degree++;
-		b->siblingright = a->child;
-		if (b->siblingright) b->siblingright->siblingleft = b;
-		b->siblingleft = NULL;
+		b->right = a->child;
+		if (b->right) b->right->left = b;
+		b->left = NULL;
 		a->child = b;
 		b->par = a;
 		return a;
 	}
-	void addintoheap(pnode _new)
+	void addintoheap(pnode _new) // Inserts the node into the heap linked list
 	{
 		_new->right = mx->right;
 		_new->left = mx;
@@ -80,7 +83,7 @@ struct FibHeap
 	}
 
 	// Main functions
-	void push(pnode _new)
+	void push(pnode _new) // Insert a node into the heap
 	{
 		if (!sz)
 		{
@@ -94,13 +97,13 @@ struct FibHeap
 		sz++;
 		addintoheap(_new);
 	}
-	void push(int val)
+	void push(int val) // Insert a value into the heap
 	{
 		pnode _new = _newnode(val);
 		push(_new);
 	}
 
-	void pop()
+	void pop() // Remove the largest element from the heap
 	{
 		sz--;
 		if (!sz) // If only one element, just remove it
@@ -117,6 +120,7 @@ struct FibHeap
 		pnode child = mx->child;
 		while (child != NULL)
 		{
+			pnode nextchild = child->right; // Store the next child because it will be lost when we insert child into the heap
 			// Insert child into heap
 			child->right = temproot->right;
 			child->left = temproot;
@@ -124,7 +128,7 @@ struct FibHeap
 			child->right->left = child;
 			child->par = NULL;
 			// Set child to its sibling
-			child = child->siblingright;
+			child = nextchild;
 		}
 		// Fix the heap by merging trees of the same priority
 		pnode a = temproot;
@@ -153,7 +157,7 @@ struct FibHeap
 		}
 		while (a != temproot);
 	}
-	void merge(FibHeap &a)
+	void merge(FibHeap &a) // Merge Fibonacci Heap a into this heap
 	{
 		// Cut each heap between their maximum and the element to the right of that, then splice together
 		pnode b = a.mx; 
@@ -167,27 +171,28 @@ struct FibHeap
 		br->left = mx;
 
 		if (b->val > mx->val) mx = b; // Update max if needed
+
+		sz += a.sz; // update size of heap
 	}
-	void cutfromtree(pnode a)
+	void cutfromtree(pnode a) // Removes this node from its parent and inserts it into the heap
 	{
 		pnode p = a->par;
 		if (p == NULL) return;
 		if (p->child == a) // A is the first child of p
 		{
-			p->child = a->siblingright;
-			if (a->siblingright) a->siblingright->siblingleft = NULL;
+			p->child = a->right;
+			if (a->right) a->right->left = NULL;
 		}
 		else // A is somewhere in the middle. Remove a from the child linked-list
 		{
-			if (a->siblingleft) a->siblingleft->siblingright = a->siblingright;
-			if (a->siblingright) a->siblingright->siblingleft = a->siblingleft;
+			if (a->left) a->left->right = a->right;
+			if (a->right) a->right->left = a->left;
 		}
-	//	a->siblingleft = a->siblingright = NULL;
 		a->onechildcut = 0;
 		// insert a into the heap linked list
 		addintoheap(a);
 	}
-	void increasekey(pnode a, int val)
+	void increasekey(pnode a, int val) // Increase the value of a node. If val < a->val the heap-order will be broken
 	{
 		// Update the value of a
 		a->val = val;
@@ -198,16 +203,28 @@ struct FibHeap
 			a->par = NULL;
 			while (p && p->onechildcut) // If any parents are marked, cut from tree
 			{
+				p->degree--; // P has lost a child, subtract one from the degree
 				cutfromtree(p);
 				pnode _newpar = p->par;
 				p->par = NULL;
 				p = _newpar;
 			}
-			if (p) p->onechildcut = 1; // Mark the parent
+			if (p)
+			{
+				p->onechildcut = 1; // Mark the parent
+				p->degree--; // P has lost a child, subtract one from the degree
+			}
 		}
 		else // Update max if needed
 		{
 			if (a->val > mx->val) mx = a;
 		}
+	}
+	void erase(pnode a) // Remove a node from the heap
+	{
+		// Update the value to infinity (in this case, (2^31)-1)
+		increasekey(a, (1 << 31)-1);
+		// Since a should now be the greatest element, pop
+		pop();
 	}
 };
