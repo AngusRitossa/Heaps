@@ -1,14 +1,14 @@
 #include <bits/stdc++.h>
-#include "fibheap.cpp"
+#include "Binomial/binomial.cpp"
 using namespace std;
-typedef struct FibNode* pnode;
+typedef struct BinomialNode* pnode;
 vector<pnode> v;
-FibHeap fib;
+BinomialHeap fib;
 int main()
 {
 	while (true)
 	{
-		pnode _new = _newnode(rand()%10000);
+		pnode _new = binomialheapalloc::_newnode(rand()%10000);
 		v.push_back(_new);
 		fib.push(_new);
 
@@ -41,10 +41,10 @@ int main()
 		}
 		if (mx != fib.top())
 		{
-			printf("%d - %d\n", mx, fib.top());
+			printf("a %d - %d\n", mx, fib.top());
 		}
 		assert(mx == fib.top());
-		if (fib.size() > 10 && rand()%2)
+		if (fib.size() > 10 && rand()%2 && false)
 		{
 			int i = rand()%v.size();
 			v[i]->val += rand()%1000;

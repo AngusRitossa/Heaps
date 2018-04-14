@@ -1,16 +1,17 @@
 // Fibonacci Heap with push, pop, erase, top (max), merge & increase key
-
 typedef struct FibNode* pnode;
 struct FibNode
 {
 	int val, degree; // Value of the node and number of children
-	bool onechildcut; // Whether one of its children has been cut due to decrease key
+	bool onechildcut; // Whether one of its children has been cut due to increase key
 	pnode left, right, child, par; // When the node is the root of the heap, left and right refer to its neighbours in the heap linked list
 	// When the node is not the root of the heap, left and right refer to its neighbouring siblings
 };
 // Global variables, used for intermediate storage during the pop function
 pnode _ofsize[100];
 int _ofsizedone[100], _ofsizeupto;
+namespace fibheapalloc
+{
 // Nodes are allocated from this array
 FibNode _heap[20000000]; 
 int _heapallocupto;
@@ -21,7 +22,8 @@ pnode _newnode(int val)
 	_new->val = val;
 	return _new;
 }
-struct FibHeap
+}
+struct FibonacciHeap
 {
 	pnode mx; // Pointer to the maximum value in the heap
 	int sz; // Number of elements in the heap
@@ -99,7 +101,7 @@ struct FibHeap
 	}
 	void push(int val) // Insert a value into the heap
 	{
-		pnode _new = _newnode(val);
+		pnode _new = fibheapalloc::_newnode(val);
 		push(_new);
 	}
 
