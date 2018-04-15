@@ -184,22 +184,16 @@ struct BinomialHeap
 			}
 		}
 	}
-	void increasekey(pnode a, int val)
+	void increasekey(pnode &a, int val)
 	{
-		a->val = val;
-		if (mx == NULL || val > mx->val) mx = a;
 		while (a->par && a->par->val < val)
 		{
 			// Swap a and its parent
-			pnode b = a->par; 
-			pnode sib = a->sibling;
-			a->sibling = b->sibling;
-			b->sibling = sib;
-			b->child = a->child;
-			a->child = b;
-			a->par = b->par;
-			b->par = a;
+			a->val = a->par->val;
+			a = a->par;
 		}
+		a->val = val;
+		if (mx == NULL || val > mx->val) mx = a;
 	}
 	void erase(pnode a) // Remove a node from the heap
 	{
