@@ -23,7 +23,7 @@ pnode _newnode(int val)
 	return _new;
 }
 }
-struct FibonacciHeap
+struct FibHeap
 {
 	pnode mx; // Pointer to the maximum value in the heap
 	int sz; // Number of elements in the heap
@@ -114,23 +114,40 @@ struct FibonacciHeap
 			return;
 		}
 		// Remove mx from the heap
-		temproot = mx->left;
-		temproot->right = mx->right;
-		temproot->right->left = temproot;
-
-		// Add the children of mx to the heap
-		pnode child = mx->child;
-		while (child != NULL)
+		if (mx->left == mx) // If there's only one node in the heap - special case
 		{
-			pnode nextchild = child->right; // Store the next child because it will be lost when we insert child into the heap
-			// Insert child into heap
-			child->right = temproot->right;
-			child->left = temproot;
-			temproot->right = child;
-			child->right->left = child;
-			child->par = NULL;
-			// Set child to its sibling
-			child = nextchild;
+			// The heap will just consist of the children of mx
+			// Set the first child as the root, insert the rest
+			mx = temproot = mx->child;
+			pnode child = mx->right;
+			mx->left = mx->right = mx;
+			while (child != NULL)
+			{
+				pnode nextchild = child->right;
+				addintoheap(child);
+				child = nextchild;
+			}
+		}
+		else
+		{	
+			temproot = mx->left;
+			temproot->right = mx->right;
+			temproot->right->left = temproot;
+
+			// Add the children of mx to the heap
+			pnode child = mx->child;
+			while (child != NULL)
+			{
+				pnode nextchild = child->right; // Store the next child because it will be lost when we insert child into the heap
+				// Insert child into heap
+				child->right = temproot->right;
+				child->left = temproot;
+				temproot->right = child;
+				child->right->left = child;
+				child->par = NULL;
+				// Set child to its sibling
+				child = nextchild;
+			}
 		}
 		// Fix the heap by merging trees of the same priority
 		pnode a = temproot;
@@ -225,7 +242,7 @@ struct FibonacciHeap
 	void erase(pnode a) // Remove a node from the heap
 	{
 		// Update the value to infinity (in this case, (2^31)-1)
-		increasekey(a, (1 << 31)-1);
+		increasekey(a, (1ll << 31)-1);
 		// Since a should now be the greatest element, pop
 		pop();
 	}
