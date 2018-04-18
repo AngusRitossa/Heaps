@@ -114,7 +114,7 @@ struct FibHeap
 			return;
 		}
 		// Remove mx from the heap
-		if (mx->left == mx) // If there's only one node in the heap - special case
+		if (mx->left == mx) // If there was only one node in the heap - special case
 		{
 			// The heap will just consist of the children of mx
 			// Set the first child as the root, insert the rest
@@ -125,8 +125,11 @@ struct FibHeap
 			{
 				pnode nextchild = child->right;
 				addintoheap(child);
+				if (child->val > mx->val) mx = child;
 				child = nextchild;
 			}
+			// The heap is now sufficient (since there were at most log children)
+			return;
 		}
 		else
 		{	
