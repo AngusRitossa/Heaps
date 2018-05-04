@@ -210,6 +210,7 @@ struct FibHeap
 			if (a->left) a->left->right = a->right;
 			if (a->right) a->right->left = a->left;
 		}
+		a->par = NULL;
 		a->onechildcut = 0;
 		// insert a into the heap linked list
 		addintoheap(a);
