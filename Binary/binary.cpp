@@ -83,4 +83,11 @@ struct BinaryHeap
 			a.pop();
 		}
 	}
+	void increasekey(int a, int val)
+	{
+		// Update the value
+		heap[a] = val;
+		// Move up to new position
+		bubbleup(a);
+	}
 };
