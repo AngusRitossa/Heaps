@@ -1,0 +1,141 @@
+// Dijkstra's algorithm implemented with a binary heap: O((v + e) log v)
+#include <cstdio>
+#include <vector>
+#include <utility>
+#include <queue>
+using namespace std;
+#define MAXN 1000001
+typedef long long ll;
+
+struct BinaryHeap
+{
+	ll heap[MAXN];
+	int node[MAXN];
+	int at[MAXN];
+	int upto = 0;
+	// Auxiliary functions
+	int size()
+	{
+		return upto;
+	}
+	bool empty()
+	{
+		return !upto;
+	}
+	ll top()
+	{
+		return heap[1];
+	}
+	void swap(int a, int b) // Swaps two elements
+	{
+		ll c = heap[a];
+		int n = node[a];
+		heap[a] = heap[b];
+		heap[b] = c;
+		node[a] = node[b];
+		node[b] = n;
+		at[node[a]] = a;
+		at[node[b]] = b;
+	}
+	void bubbleup(int a) // Moves a value up the heap until it reaches the correct spot
+	{
+		while (a != 1 && heap[a] < heap[a/2])
+		{
+			swap(a, a/2);
+			a /= 2;
+		}
+	}
+	void bubbledown(int a) // Moves a value down the heap until it reaches the correct spot
+	{
+		while (2*a < upto) // Swap with the greatest of the two children
+		{
+			if (heap[2*a] <= heap[2*a+1] && heap[2*a] < heap[a])  
+			{
+				swap(a, 2*a);
+				a*=2;
+			}
+			else if (heap[2*a+1] < heap[2*a] && heap[2*a+1] < heap[a])
+			{
+				swap(a, 2*a+1);
+				a*=2;
+				a++;
+			}
+			else break;
+		}
+		if (2*a == upto) // Only has one child, try swapping with that
+		{
+			if (heap[2*a] < heap[a])
+			{
+				swap(a, 2*a);
+				a*=2;
+			}
+		}
+	}
+
+	// Main functions
+	void push(ll a, int n)
+	{
+		// Set the last value to a, then bubble up to the corect position
+		heap[++upto] = a;
+		node[upto] = n;
+		at[n] = upto;
+		bubbleup(upto);
+	}
+	void pop()
+	{
+		// Move last element to the top
+		swap(1, upto);
+		// Decrease size
+		upto--;
+		// Bubble down from 1
+		bubbledown(1);
+	}
+	void decreasekey(int a, ll val)
+	{
+		// Update the value
+		heap[a] = val;
+		// Move up to new position
+		bubbleup(a);
+	}
+};
+
+int v, e;
+vector<pair<int, ll> > adj[MAXN];
+BinaryHeap pq;
+int main()
+{
+	// Scan in the input
+	scanf("%d%d", &v, &e);
+	for (int i = 0; i < e; i++)
+	{
+		int a, b;
+		ll c;
+		scanf("%d%d%lld", &a, &b, &c);
+		adj[a].emplace_back(b, c);
+		adj[b].emplace_back(a, c);
+	}
+
+	// Initialise the distance to each node
+	pq.push(0, 0);
+	for (int i = 1; i < v; i++)
+	{
+		pq.push(1e18, i);
+	}
+
+	// Run dijkstra
+	while (!pq.empty())
+	{
+		int a = pq.node[1];
+		ll d = pq.top();
+		pq.pop();
+		for (auto b : adj[a])
+		{
+			if (d + b.second < pq.heap[pq.at[b.first]])
+			{
+				pq.decreasekey(pq.at[b.first], d + b.second);
+			}
+		}
+	}
+	// Print distance to node n-1;
+	printf("%lld\n", pq.heap[pq.at[v-1]]);
+}

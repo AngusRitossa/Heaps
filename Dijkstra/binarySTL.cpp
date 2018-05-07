@@ -1,14 +1,15 @@
-// Dijkstra's algorithm implemented with a STL binary heap: O(e log e)
+// Dijkstra's algorithm implemented with a STL binary heap: O((v + e) log e)
 #include <cstdio>
 #include <vector>
 #include <utility>
 #include <queue>
 using namespace std;
+#define MAXN 1000001
 typedef long long ll;
 int v, e;
-vector<pair<int, ll> > adj[10000000];
+vector<pair<int, ll> > adj[MAXN];
 priority_queue<pair<ll, int>, vector<pair<ll, int> >, greater<pair<ll, int> > > pq;
-ll dis[10000000];
+ll dis[MAXN];
 int main()
 {
 	// Scan in the input

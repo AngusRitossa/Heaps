@@ -1,17 +1,23 @@
-// Binomial heap with push, pop, top (maximum), merge, increase key, delete
-typedef struct BinomialNode* pnode;
+// Dijkstra's algorithm implemented with a binomial heap: O((v + e) log v)
+#include <cstdio>
+#include <vector>
+#include <utility>
+typedef long long ll;
 #define MAXN 1000001
+typedef struct BinomialNode* pnode;
 struct BinomialNode
 {
-	int val, degree;
+	ll val;
+	int node;
+	int degree;
 	pnode sibling, child, par; // sibling is either in the heap linked list of the sibling within a tree. 
 };
 namespace binomialheapalloc
 {
 // Nodes are allocated from this array
-BinomialNode _heap[20000000]; 
+BinomialNode _heap[MAXN]; 
 int _heapallocupto;
-pnode _newnode(int val)
+pnode _newnode(ll val)
 {
 	pnode _new = _heap + _heapallocupto++; // Dynamic allocation is slow ... this is much faster
 	//pnode _new = new BinomialNode(); // Other method of allocating memory
@@ -19,11 +25,12 @@ pnode _newnode(int val)
 	return _new;
 }
 }
+pnode nodes[MAXN];
 struct BinomialHeap
 {
 	pnode root = NULL;
 	int sz = 0;
-	pnode mx = NULL;
+	pnode mn = NULL;
 	// Auxiliary functions
 	int size()
 	{
@@ -33,9 +40,9 @@ struct BinomialHeap
 	{
 		return !sz;
 	}
-	int top()
+	ll top()
 	{
-		return mx->val;
+		return mn->val;
 	}
 	void swap(pnode &a, pnode &b) // Swaps two pnodes. Created to remove any reliance on STL
 	{
@@ -43,9 +50,15 @@ struct BinomialHeap
 		a = b;
 		b = c;
 	}
+	void swap(int &a, int &b) // Swaps two ints. Created to remove any reliance on STL
+	{
+		int c = a;
+		a = b;
+		b = c;
+	}
 	pnode mergetrees(pnode a, pnode b, pnode pre = NULL) // Merges trees with equal degree, creating one tree with degree+1
 	{
-		if (b->val > a->val)
+		if (b->val < a->val)
 		{
 			// Swap them & replace a with b in the linked list
 			if (pre) pre->sibling = b;
@@ -59,7 +72,7 @@ struct BinomialHeap
 		b->sibling = a->child;
 		a->child = b;
 		b->par = a;
-		if (mx == NULL || a->val >= mx->val) mx = a;
+		if (mn == NULL || a->val <= mn->val) mn = a;
 		return a;
 	}
 
@@ -68,7 +81,7 @@ struct BinomialHeap
 	{
 		// Worst case O(log(n)) - average O(1)
 		sz++;
-		if (mx == NULL || _new->val > mx->val) mx = _new; // Update mx if needed
+		if (mn == NULL || _new->val < mn->val) mn = _new; // Update mn if needed
 		_new->sibling = root; // Set this new node as the first one
 		root = _new; // set as root
 		while (_new->sibling && _new->degree == _new->sibling->degree) // Will merge until no longer necessary, then break
@@ -76,7 +89,7 @@ struct BinomialHeap
 			_new = mergetrees(_new, _new->sibling);
 		}
 	}
-	void push(int val)
+	void push(ll val)
 	{
 		pnode _new = binomialheapalloc::_newnode(val);
 		push(_new);
@@ -87,8 +100,8 @@ struct BinomialHeap
 		pnode pre = NULL;
 		while (a && b)
 		{
-			if (mx == NULL || b->val > mx->val) mx = b; // update mx if needed
-			if (mx == NULL || a->val > mx->val) mx = a; // update mx if needed
+			if (mn == NULL || b->val < mn->val) mn = b; // update mn if needed
+			if (mn == NULL || a->val < mn->val) mn = a; // update mn if needed
 			b->par = NULL; // Its a root - has no parent
 			a->par = NULL; // Its a root - has no parent
 			if (a->degree < b->degree)
@@ -122,7 +135,7 @@ struct BinomialHeap
 		}
 		while (a) // Add to the end
 		{
-			if (mx == NULL || a->val > mx->val) mx = a; // update mx if needed
+			if (mn == NULL || a->val < mn->val) mn = a; // update mn if needed
 			a->par = NULL; // Its a root - has no parent
 			if (pre) pre->sibling = a;
 			else root = a;
@@ -131,7 +144,7 @@ struct BinomialHeap
 		}
 		while (b) // Add to the end
 		{
-			if (mx == NULL || b->val > mx->val) mx = b; // update mx if needed
+			if (mn == NULL || b->val < mn->val) mn = b; // update mn if needed
 			b->par = NULL; // Its a root - has no parent
 			if (pre) pre->sibling = b;
 			else root = b;
@@ -150,12 +163,12 @@ struct BinomialHeap
 		sz--;
 		pnode a = root;
 		pnode pre = NULL;
-		while (a != mx) // Find the tree with mx
+		while (a != mn) // Find the tree with mn
 		{
 			pre = a;
 			a = a->sibling;
 		}	
-		mx = NULL;
+		mn = NULL;
 		// Remove it from the tree
 		if (pre)
 		{
@@ -182,27 +195,74 @@ struct BinomialHeap
 			pnode b = root;
 			while (b)
 			{
-				if (mx == NULL || b->val > mx->val) mx = b;
+				if (mn == NULL || b->val < mn->val) mn = b;
 				b = b->sibling;
 			}
 		}
 	}
-	void increasekey(pnode &a, int val)
+	void decreasekey(pnode &a, ll val)
 	{
-		while (a->par && a->par->val < val)
+		while (a->par && a->par->val > val)
 		{
 			// Swap a and its parent
+			swap(a->node, a->par->node);
 			a->val = a->par->val;
+			nodes[a->node] = a;
 			a = a->par;
 		}
 		a->val = val;
-		if (mx == NULL || val > mx->val) mx = a;
+		nodes[a->node] = a;
+		if (mn == NULL || val < mn->val) mn = a;
 	}
 	void erase(pnode a) // Remove a node from the heap
 	{
 		// Update the value to infinity (in this case, (2^31)-1)
-		increasekey(a, (1 << 31)-1);
+		decreasekey(a, -((1 << 31)-1));
 		// Since a should now be the greatest element, pop
 		pop();
 	}
 };
+int v, e;
+std::vector<std::pair<ll, int> > adj[MAXN];
+BinomialHeap pq;
+int main()
+{
+	// Scan in the input
+	scanf("%d%d", &v, &e);
+	for (int i = 0; i < e; i++)
+	{
+		int a, b;
+		ll c;
+		scanf("%d%d%lld", &a, &b, &c);
+		adj[a].emplace_back(b, c);
+		adj[b].emplace_back(a, c);
+	}
+
+	// Initialise the distance to each node
+	nodes[0] = binomialheapalloc::_newnode(0);
+	nodes[0]->node = 0;
+	pq.push(nodes[0]);
+	for (int i = 1; i < v; i++)
+	{
+		nodes[i] = binomialheapalloc::_newnode(1e18);
+		nodes[i]->node = i;
+		pq.push(nodes[i]);
+	}
+
+	// Run dijkstra
+	while (!pq.empty())
+	{
+		int a = pq.mn->node;
+		ll d = pq.top();
+		pq.pop();
+		for (auto b : adj[a])
+		{
+			if (d + b.second < nodes[b.first]->val)
+			{
+				pq.decreasekey(nodes[b.first], d + b.second);
+			}
+		}
+	}
+	// Print distance to node n-1;
+	printf("%lld\n", nodes[v-1]->val);
+}

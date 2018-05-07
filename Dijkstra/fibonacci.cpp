@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <vector>
 #include <utility>
+#define MAXN 1000001
 typedef long long ll;
 typedef struct FibNode* pnode;
 struct FibNode
@@ -18,7 +19,7 @@ int _ofsizedone[100], _ofsizeupto;
 namespace fibheapalloc
 {
 // Nodes are allocated from this array
-FibNode _heap[20000000]; 
+FibNode _heap[MAXN]; 
 int _heapallocupto;
 pnode _newnode(ll val)
 {
@@ -257,9 +258,9 @@ struct FibHeap
 	}
 };
 int v, e;
-std::vector<std::pair<ll, int> > adj[10000000];
+std::vector<std::pair<ll, int> > adj[MAXN];
 FibHeap pq;
-pnode nodes[10000000];
+pnode nodes[MAXN];
 int main()
 {
 	// Scan in the input
