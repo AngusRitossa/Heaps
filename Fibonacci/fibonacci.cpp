@@ -221,15 +221,13 @@ struct FibHeap
 		a->val = val;
 		if (a->par != NULL && a->par->val < a->val) // heap order has been violated
 		{
-			cutfromtree(a); // Cut a from the tree
 			pnode p = a->par;
-			a->par = NULL;
+			cutfromtree(a); // Cut a from the tree
 			while (p && p->onechildcut) // If any parents are marked, cut from tree
 			{
 				p->degree--; // P has lost a child, subtract one from the degree
-				cutfromtree(p);
 				pnode _newpar = p->par;
-				p->par = NULL;
+				cutfromtree(p);
 				p = _newpar;
 			}
 			if (p)
@@ -240,7 +238,7 @@ struct FibHeap
 		}
 		else // Update max if needed
 		{
-			if (a->val > mx->val) mx = a;
+			if (a->val > mn->val) mn = a;
 		}
 	}
 	void erase(pnode a) // Remove a node from the heap

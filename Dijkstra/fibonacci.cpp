@@ -2,6 +2,8 @@
 #include <cstdio>
 #include <vector>
 #include <utility>
+#include <chrono>
+using namespace std::chrono;
 #define MAXN 1000001
 typedef long long ll;
 typedef struct FibNode* pnode;
@@ -227,15 +229,13 @@ struct FibHeap
 		a->val = val;
 		if (a->par != NULL && a->par->val > a->val) // heap order has been violated
 		{
-			cutfromtree(a); // Cut a from the tree
 			pnode p = a->par;
-			a->par = NULL;
+			cutfromtree(a); // Cut a from the tree
 			while (p && p->onechildcut) // If any parents are marked, cut from tree
 			{
 				p->degree--; // P has lost a child, subtract one from the degree
-				cutfromtree(p);
 				pnode _newpar = p->par;
-				p->par = NULL;
+				cutfromtree(p);
 				p = _newpar;
 			}
 			if (p)
@@ -258,7 +258,7 @@ struct FibHeap
 	}
 };
 int v, e;
-std::vector<std::pair<ll, int> > adj[MAXN];
+std::vector<std::pair<int, ll> > adj[MAXN];
 FibHeap pq;
 pnode nodes[MAXN];
 int main()
@@ -273,6 +273,7 @@ int main()
 		adj[a].emplace_back(b, c);
 		adj[b].emplace_back(a, c);
 	}
+	milliseconds start_ti = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 
 	// Initialise the distance to each node
 	nodes[0] = fibheapalloc::_newnode(0);
@@ -301,4 +302,8 @@ int main()
 	}
 	// Print distance to node n-1;
 	printf("%lld\n", nodes[v-1]->val);
+
+	milliseconds end_ti = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+	ll time_used = end_ti.count() - start_ti.count();
+	printf("Time % 6lldms\n", time_used); fflush(stdout);
 }

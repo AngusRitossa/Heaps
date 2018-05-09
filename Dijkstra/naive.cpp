@@ -2,6 +2,8 @@
 #include <cstdio>
 #include <vector>
 #include <utility>
+#include <chrono>
+using namespace std::chrono;
 #define MAXN 1000001
 typedef long long ll;
 struct NaiveHeap
@@ -83,6 +85,8 @@ int main()
 		adj[a].emplace_back(b, c);
 		adj[b].emplace_back(a, c);
 	}
+	// Start the timer
+	milliseconds start_ti = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 
 	// Initialise the distance to each node
 	pq.push(0);
@@ -107,4 +111,9 @@ int main()
 	}
 	// Print distance to node n-1;
 	printf("%lld\n", pq.heap[v-1]);
+
+	// End the timer, print the time
+	milliseconds end_ti = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+	ll time_used = end_ti.count() - start_ti.count();
+	printf("Time % 6lldms\n", time_used);
 }
