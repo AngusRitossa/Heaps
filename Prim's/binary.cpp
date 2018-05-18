@@ -119,7 +119,7 @@ int main()
 		adj[b].emplace_back(a, c);
 	}
 	// Start the timer
-	milliseconds start_ti = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+	milliseconds start = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 
 	// Initialise the distance to each node
 	pq.push(0, 0);
@@ -133,7 +133,7 @@ int main()
 	while (!pq.empty())
 	{
 		int a = pq.node[1];
-		done[a] = 1;
+
 		ll d = pq.top();
 		ans += d;
 		pq.pop();
@@ -149,7 +149,7 @@ int main()
 	printf("%lld\n", ans);
 
 	// End the timer, print the time
-	milliseconds end_ti = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-	ll time_used = end_ti.count() - start_ti.count();
-	printf("Time % 6lldms\n", time_used);
+	milliseconds end = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+	ll totaltime = end.count() - start.count();
+	printf("Time % 6lldms\n", totaltime);
 }
