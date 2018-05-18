@@ -240,7 +240,7 @@ int main()
 		adj[b].emplace_back(a, c);
 	}
 	// Start the timer
-	milliseconds start_ti = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+	milliseconds start = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 
 	// Initialise the distance to each node
 	nodes[0] = binomialheapalloc::_newnode(0);
@@ -271,7 +271,7 @@ int main()
 	printf("%lld\n", nodes[v-1]->val);
 
 	// End the timer, print the time
-	milliseconds end_ti = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-	ll time_used = end_ti.count() - start_ti.count();
-	printf("Time % 6lldms\n", time_used);
+	milliseconds end = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+	ll totaltime = end.count() - start.count();
+	printf("Time % 6lldms\n", totaltime);
 }
