@@ -6,3 +6,4 @@ rm fibonacci
 rm naive
 rm gen
 rm in.txt
+rm worstcasegen

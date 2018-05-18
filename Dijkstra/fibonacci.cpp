@@ -207,6 +207,11 @@ struct FibHeap
 	void cutfromtree(pnode a) // Removes this node from its parent and inserts it into the heap
 	{
 		pnode p = a->par;
+		if (a->onechildcut) 
+		{
+			a->onechildcut = 0;
+			a->degree--;
+		}
 		if (p == NULL) return;
 		if (p->child == a) // A is the first child of p
 		{
@@ -219,7 +224,6 @@ struct FibHeap
 			if (a->right) a->right->left = a->left;
 		}
 		a->par = NULL;
-		a->onechildcut = 0;
 		// insert a into the heap linked list
 		addintoheap(a);
 	}
@@ -241,7 +245,6 @@ struct FibHeap
 			if (p)
 			{
 				p->onechildcut = 1; // Mark the parent
-				p->degree--; // P has lost a child, subtract one from the degree
 			}
 		}
 		else // Update max if needed
@@ -273,6 +276,7 @@ int main()
 		adj[a].emplace_back(b, c);
 		adj[b].emplace_back(a, c);
 	}
+	// Start the timer
 	milliseconds start_ti = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 
 	// Initialise the distance to each node
@@ -303,7 +307,8 @@ int main()
 	// Print distance to node n-1;
 	printf("%lld\n", nodes[v-1]->val);
 
+	// End the timer, print the time
 	milliseconds end_ti = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 	ll time_used = end_ti.count() - start_ti.count();
-	printf("Time % 6lldms\n", time_used); fflush(stdout);
+	printf("Time % 6lldms\n", time_used);
 }
