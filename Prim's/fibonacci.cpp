@@ -2,9 +2,9 @@
 #include <cstdio>
 #include <vector>
 #include <utility>
-#define MAXN 1000001
 #include <chrono>
 using namespace std::chrono;
+#define MAXN 1000001
 typedef long long ll;
 typedef struct FibNode* pnode;
 struct FibNode
@@ -207,6 +207,11 @@ struct FibHeap
 	void cutfromtree(pnode a) // Removes this node from its parent and inserts it into the heap
 	{
 		pnode p = a->par;
+		if (a->onechildcut) 
+		{
+			a->onechildcut = 0;
+			a->degree--;
+		}
 		if (p == NULL) return;
 		if (p->child == a) // A is the first child of p
 		{
@@ -219,7 +224,6 @@ struct FibHeap
 			if (a->right) a->right->left = a->left;
 		}
 		a->par = NULL;
-		a->onechildcut = 0;
 		// insert a into the heap linked list
 		addintoheap(a);
 	}
@@ -229,21 +233,18 @@ struct FibHeap
 		a->val = val;
 		if (a->par != NULL && a->par->val > a->val) // heap order has been violated
 		{
-			cutfromtree(a); // Cut a from the tree
 			pnode p = a->par;
-			a->par = NULL;
+			cutfromtree(a); // Cut a from the tree
 			while (p && p->onechildcut) // If any parents are marked, cut from tree
 			{
 				p->degree--; // P has lost a child, subtract one from the degree
-				cutfromtree(p);
 				pnode _newpar = p->par;
-				p->par = NULL;
+				cutfromtree(p);
 				p = _newpar;
 			}
 			if (p)
 			{
 				p->onechildcut = 1; // Mark the parent
-				p->degree--; // P has lost a child, subtract one from the degree
 			}
 		}
 		else // Update max if needed
@@ -263,6 +264,7 @@ int v, e;
 std::vector<std::pair<int, ll> > adj[MAXN];
 FibHeap pq;
 pnode nodes[MAXN];
+bool done[MAXN];
 int main()
 {
 	// Scan in the input
@@ -275,7 +277,9 @@ int main()
 		adj[a].emplace_back(b, c);
 		adj[b].emplace_back(a, c);
 	}
+	// Start the timer
 	milliseconds start_ti = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+
 	// Initialise the distance to each node
 	nodes[0] = fibheapalloc::_newnode(0);
 	nodes[0]->node = 0;
@@ -286,24 +290,28 @@ int main()
 		nodes[i]->node = i;
 		pq.push(nodes[i]);
 	}
+	ll ans = 0;
 
-	// Run dijkstra
+	// Run prim's algorithm
 	while (!pq.empty())
 	{
 		int a = pq.mn->node;
+		done[a] = 1;
 		ll d = pq.top();
+		ans += d;
 		pq.pop();
 		for (auto b : adj[a])
 		{
-			if (d + b.second < nodes[b.first]->val)
+			if (!done[b.first] && b.second < nodes[b.first]->val)
 			{
-				pq.decreasekey(nodes[b.first], d + b.second);
+				pq.decreasekey(nodes[b.first], b.second);
 			}
 		}
 	}
-	// Print distance to node n-1;
-	printf("%lld\n", nodes[v-1]->val);
+	// Print sum of edge weights
+	printf("%lld\n", ans);
 
+	// End the timer, print the time
 	milliseconds end_ti = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 	ll time_used = end_ti.count() - start_ti.count();
 	printf("Time % 6lldms\n", time_used);
