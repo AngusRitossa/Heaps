@@ -241,7 +241,7 @@ struct FibHeap
 		}
 		else // Update max if needed
 		{
-			if (a->val > mn->val) mn = a;
+			if (a->val > mx->val) mx = a;
 		}
 	}
 	void erase(pnode a) // Remove a node from the heap
