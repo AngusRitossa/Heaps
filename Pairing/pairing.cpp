@@ -99,6 +99,7 @@ struct PairingHeap
 	{
 		sz--;
 		root = recursivemerge(root->child);
+		if (root) root->right = NULL;
 	}
 	void increasekey(pnode a, int val)
 	{

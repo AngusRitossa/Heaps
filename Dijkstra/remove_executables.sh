@@ -5,6 +5,7 @@ rm binomial
 rm fibonacci
 rm naive
 rm pairing
+rm rankpairing
 rm gen
 rm in.txt
 rm in
