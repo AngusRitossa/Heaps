@@ -115,7 +115,11 @@ struct RPHeap
 		// Update root if needed
 		if (c->val < root->val) root = c;
 	}
-
+	int rank(pnode a) // Returns the rank of a, or -1 if a doesn't exist
+	{
+		if (a) return a->rank;
+		else return -1;
+	}
 	void pop() // Removes root from the heap
 	{
 		sz--;
@@ -125,6 +129,7 @@ struct RPHeap
 		while (c) // Insert the chain of right children into new heap
 		{
 			pnode d = c->right; // Next node to be processed
+			c->rank = rank(c->left)+1;
 			c->par = c->left;
 			if (nodesOfRank[c->rank]) // Do merge, insert into heap
 			{
@@ -166,11 +171,6 @@ struct RPHeap
 			}
 		}
 		root = newroot;
-	}
-	int rank(pnode a) // Returns the rank of a, or -1 if a doesn't exist
-	{
-		if (a) return a->rank;
-		else return -1;
 	}
 	void decreasekey(pnode a, ll val) // Decrease the value at a to val. Uses type-2 rank reduction 
 	{
