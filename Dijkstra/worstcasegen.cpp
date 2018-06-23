@@ -33,6 +33,6 @@ int main()
 		}
 	}
 	if (r) random_shuffle(edges.begin(), edges.end());
-	printf("%d %d\n", n, edges.size());
+	printf("%d %lu\n", n, edges.size());
 	for (auto a : edges) printf("%d %d %lld\n", a.first.first, a.first.second, a.second);
 }

@@ -6,7 +6,10 @@ rm fibonacci
 rm naive
 rm pairing
 rm rankpairing
+rm strictfibonacci
 rm gen
 rm in.txt
 rm in
+rm out.txt
+rm out
 rm worstcasegen
