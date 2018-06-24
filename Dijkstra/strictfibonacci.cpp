@@ -791,6 +791,7 @@ struct StrictFibonacciHeap // The actual heap
 			}
 		}
 		// Make all other children of the root a child of x
+		delete root;
 		root = x;
 		x->parent = NULL;
 		a = x->right;
@@ -824,10 +825,14 @@ struct StrictFibonacciHeap // The actual heap
 			lossReduction();
 		}
 		// Do active root reductions and root degree reductions while possible
-		while (one || rootDegreeReduction())
-		{
-			activeRootReduction();
-		}
+		while (rootDegreeReduction() || activeRootReduction()) {}
+	}
+	void erase(pnode x)
+	{
+		// Decrease key to -inf
+		decreasekey(x, -2e9);
+		// Pop
+		pop();
 	}
 };
 int v, e;
