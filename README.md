@@ -8,4 +8,5 @@ The following heaps are implemented in C++
 - Rank-Pairing 
 - Strict Fibonacci
 - D-ary
+<a/>
 All of the heaps have been used to implement Dijkstra's shortest path algorithm and Prim's MST algorithm
