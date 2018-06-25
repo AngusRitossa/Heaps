@@ -7,6 +7,7 @@ rm naive
 rm pairing
 rm rankpairing
 rm strictfibonacci
+rm d-ary
 rm gen
 rm in.txt
 rm in
