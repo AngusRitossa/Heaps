@@ -7,6 +7,6 @@ The following heaps are implemented in C++
 - Fibonacci 
 - Pairing 
 - Rank-Pairing 
-- Strict Fibonacci 
-<br />
+- Strict Fibonacci
+<a/>
 All of the heaps have been used to implement Dijkstra's shortest path algorithm and Prim's MST algorithm
