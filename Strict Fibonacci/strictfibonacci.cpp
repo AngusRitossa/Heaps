@@ -18,6 +18,7 @@ struct HeapNode // Represents a node in the heap
 	pactivenode active; // Stores whether the node is active or passive
 	pnode qleft, qright; // Left and right nodes in the queue (front of the queue is leftmost node, back is rightmost)
 	pranklist rank; // If active, points to the node in the ranklist corresponding to the rank of this node.
+	pfixlist fix; // If in the fix list, contains a pointer to the location in the fix list
 	int loss; // Total loss of the node
 };
 struct ActiveRecord // Stores whether or not a node is active
@@ -32,6 +33,8 @@ struct RanklistNode
 	pfixlist loss; // Points to a node in the fixlist with the rank assigned to this node that has positive loss (if it exists)
 	pfixlist active; // Points to an active root in the fixlist with this rank if it exists
 	int count; // Number of nodes pointing here
+	int rootcount; // Number of nodes in the active root fix list 
+	int losscount; // Number of nodes in the loss fix list 
 };
 struct FixlistNode
 {
@@ -108,7 +111,6 @@ struct StrictFibonacciHeap // The actual heap
 	void link(pnode x, pnode y) // Makes y a child of x
 	{
 		// TODO: Special case the root (passive linkable vs passive)
-
 		assert(x->val->val < y->val->val);
 		if (y->parent) // If y is not the old root
 		{
@@ -213,36 +215,42 @@ struct StrictFibonacciHeap // The actual heap
 			}
 		}
 	}
-	void insertIntoFixList(pfixlist a, pfixlist &active, pfixlist &one, pfixlist &two)
+	void moveSection(pfixlist x, pfixlist &one, pfixlist &two)
+	{
+		// Move x from section 2 to 1
+		if (x->left) x->left->right = x->right;
+		if (x->right) x->right->left = x->left;
+		if (x == two) two = x->right;
+		addToFixList(x, one);
+	}
+	void insertIntoFixList(pfixlist a, pfixlist &active, int &count, pfixlist &one, pfixlist &two)
 	{
 		// Active is the pointer to the node of the same rank as x which is already in the fix list.
+		// Count is the number of nodes of that rank in the fix list
 		// One and two are pointers to the first and second fix lists
 		// Note if this is a insertion due to loss, active should be the loss pointer and one and two should be pointers to the forth and third fix lists
-		if (active == NULL)
+		assert(a->node->fix == NULL);
+		a->node->fix = a;
+		if (!count)
 		{
 			// insert into section 2
 			if (a->node->loss < 2) addToFixList(a, two);
 			else addToFixList(a, one);
 			active = a;
-		}
-		else if ((active->right && active->right->rank == active->rank) || (active->node->loss > 1 && active->node != a->node))
-		{
-			if (active->node == a->node) return; // No need to insert
-			// Already in section 1 - just insert next to the current one
-			a->right = active->right;
-			if (a->right) a->right->left = a;
-			a->left = active;
-			active->right = a;
+			count++; // Increment count
 		}
 		else
 		{
-			// Remove active from section 2
-			if (active->left) active->left->right = active->right;
-			if (active->right) active->right->left = active->left;
-			if (two == active) two = active->right;
-			// Insert both a and active into the first fix list
-			addToFixList(a, one);
-			if (active != a) addToFixList(active, one);
+			if (count == 1 && active->node->loss < 2) // Is in section 2, will need moving to section 1
+			{
+				moveSection(active, one, two);
+			}
+			// insert x to the right of active
+			a->right = active->right;
+			a->left = active;
+			active->right = a;
+			if (a->right) a->right->left = a;
+			count++; // Increment count
 		}
 	}
 	bool activeRootReduction() // Reduces number of active roots by 1, degree of root + at most 1
@@ -252,24 +260,22 @@ struct StrictFibonacciHeap // The actual heap
 		if (one->right == NULL) return false; // No nodes to do an active root reduction to
 		pfixlist x = one;
 		pfixlist y = one->right;
+		x->node->fix = y->node->fix = NULL;
 		assert(x->rank == y->rank);
 		one = y->right;
 		if (one) one->left = NULL;
-		if (one != NULL && one->rank == x->rank) // The ranklist should now point to this node
+		x->rank->rootcount-=2;
+		if (x->rank->rootcount) // Still active roots left with same rank as x and y
 		{
+			assert(one->rank == x->rank);
 			one->rank->active = one;
-			if (!one->right || one->right->rank != one->rank) // Move to the second list
+			if (one->rank->rootcount == 1) // Move sections from 1 to 2
 			{
-				pfixlist a = one;
-				one = one->right;
-				if (one) one->left = NULL;
-				addToFixList(a, two);
+				moveSection(one, two, one);
 			}
 		}
-		else
-		{
-			x->rank->active = NULL;
-		}
+		else x->rank->active = NULL;
+
 		if (one && one->rank->active != one)
 		{
 			assert(one->rank->active);
@@ -278,7 +284,7 @@ struct StrictFibonacciHeap // The actual heap
 		if (one) assert(one->rank == one->right->rank);
 
 		if (x->node->val->val > y->node->val->val) std::swap(x, y); // Make sure x.val < y.val
-
+		assert(x != y);
 		link(x->node, y->node); // Make y a child of x
 		// If the rightmost child of x is passive, make it a child of the root
 		if (x->node->child != NULL)
@@ -301,7 +307,7 @@ struct StrictFibonacciHeap // The actual heap
 		// Delete fixlist node y
 	//	delete y;
 		// Reinsert x into the fix list
-		insertIntoFixList(x, x->rank->active, one, two);
+		insertIntoFixList(x, x->rank->active, x->rank->rootcount, one, two);
 		return true;
 	}
 	bool rootDegreeReduction() // Reduces the degree of the root by 2, creating one new active root
@@ -353,7 +359,7 @@ struct StrictFibonacciHeap // The actual heap
 		pfixlist a = new FixlistNode();
 		a->node = x;
 		a->rank = x->rank;
-		insertIntoFixList(a, r->active, one, two);
+		insertIntoFixList(a, r->active, r->rootcount, one, two);
 		return true;
 	}
 	void increaseLoss(pnode x) // Increases the loss of x by one
@@ -361,125 +367,64 @@ struct StrictFibonacciHeap // The actual heap
 		x->loss++;
 		if (x->loss == 1)
 		{
-
 			// Insert into the fix list
 			pfixlist a = new FixlistNode();
 			a->node = x;
 			a->rank = x->rank;
 			assert(x->active->isactive);
-			insertIntoFixList(a, x->rank->loss, four, three);
+			insertIntoFixList(a, x->rank->loss, x->rank->losscount, four, three);
 		}
-		else if (x->rank->loss->node == x) // Could need moving
+		else if (x->rank->losscount == 1 && x->loss == 2) // Needs moving
 		{
-			if (x->rank->loss->right == NULL || x->rank->loss->right->rank != x->rank) // Needs moving from section 3 into section 4
-			{
-				insertIntoFixList(x->rank->loss, x->rank->loss, four, three);
-			}
+			moveSection(x->fix, four, three);
 		}
 	}
-	void removeFromLossFixList(pnode x)
+	void removeFromFixList(pnode x, pfixlist &active, int &count, pfixlist &one, pfixlist &two) // Remove x from the fix list, moving the other items if needed
 	{
-		if (x->loss)
+		if (x->fix)
 		{
-			pfixlist a = x->rank->loss;
+			pfixlist a = x->fix;	
 			assert(a);
-			if (a->node != x)
-			{
-				if (a->node->loss != 1) // leave a here in section 4
-				{
-					a = a->right;
-				}
-				else
-				{
-				/*	pfixlist f = a->right;
-					while (f->node != x)
-					{
-						printf("next...\n");
-						f = f->right;
-						assert(f);
-					}
-					if (f->node == x) printf("yge\n");*/
-					// Move a to the third fix list
-					pfixlist b = a->right;
-					if (a->left) a->left->right = a->right;
-					if (a->right) a->right->left = a->left;
-					if (a == four) four = a->right;
-					addToFixList(a, three);
-					a = b;
-				}
-			}
-			// Remove a from the fourth fix list
-			if (a->left) a->left->right = a->right;
-			if (a->right) a->right->left = a->left;
-			if (a == three) three = a->right;
-			if (a == four) four = a->right;
-			if (x->rank->loss == a) 
-			{
-				x->rank->loss = NULL;
-				if (four && four->rank == x->rank)
-				{
-					x->rank->loss = four;
-					if (four->node->loss < 2)
-					{
-						// MUST Move to third fix list
-						pfixlist newfour = four->right;
-						if (newfour) newfour->left = NULL;
-						addToFixList(four, three);
-						four = newfour;
-					}
-				}
-			}
-		//	delete a;
-		}
-	}
-	void removeFromActiveRootFixList(pnode x)
-	{
-		if (isActiveRoot(x))
-		{
-			pfixlist a = x->rank->active;
-			assert(a);
-			if (a->node != x)
-			{
-				assert(a->right->node == x);
-				// Move a to the second fix list
-				pfixlist b = a->right;
-				if (a->left) a->left->right = a->right;
-				if (a->right) a->right->left = a->left;
-				if (a == one) one = a->right;
-				addToFixList(a, two);
-				a = b;
-			}
-			assert(a->node == x); // Needs to be the only one, otherwise would've been fixed
-			// Remove a from the first fix list
-			if (a->left) a->left->right = a->right;
-			if (a->right) a->right->left = a->left;
+			count--;
+			// Update one and two pointers if needed
 			if (a == one) one = a->right;
 			if (a == two) two = a->right;
-			if (x->rank->active == a) x->rank->active = NULL;
-			if (one && one->rank == x->rank)
+			// Remove a
+			if (a->right) a->right->left = a->left;
+			if (a->left) a->left->right = a->right;
+			if (!count) // Was the only one
 			{
-				// MUST MOVE TO TWO
-				pfixlist newone = one->right;
-				if (newone) newone->left = NULL;
-				addToFixList(one, two);
-				x->rank->active = one;
-				one = newone;
-				if (two->right && two->right->rank == two->rank) assert(false);
+				active = NULL;
 			}
+			else
+			{
+				if (a == active) // Update pointer if needed
+				{
+					active = a->right;
+				}
+				// Move sections if needed
+				if (count == 1 && active->node->loss < 2)
+				{
+					moveSection(active, two, one);
+				}
+			}
+			delete a;
+			x->fix = NULL;
 		}
 	}
+	
 	void decreaseRank(pnode x)
 	{
 		// Decreases the rank of x by 1
 		if (isActiveRoot(x))
 		{
 			// First, remove from fix list
-			removeFromActiveRootFixList(x);
+			removeFromFixList(x, x->rank->active, x->rank->rootcount, one, two);
 		}
 		else // Might have loss
 		{
 			// If x has loss, need to remove it from the fix list
-			removeFromLossFixList(x);
+			removeFromFixList(x, x->rank->loss, x->rank->losscount, four, three);
 		}
 		// Decrease the rank
 		x->rank = x->rank->right;
@@ -489,15 +434,15 @@ struct StrictFibonacciHeap // The actual heap
 			pfixlist a = new FixlistNode();
 			a->node = x;
 			a->rank = x->rank;
-			if (x->loss) insertIntoFixList(a, x->rank->loss, four, three); // Into loss fix list
-			else insertIntoFixList(a, x->rank->active, one, two); // Into active root fix list
+			if (x->loss) insertIntoFixList(a, x->rank->loss, x->rank->losscount, four, three); // Into loss fix list
+			else insertIntoFixList(a, x->rank->active, x->rank->rootcount, one, two); // Into active root fix list
 		}
 	}
 	void increaseRank(pnode x)
 	{
 		// Increases the rank of x by 1
 		// If x has loss, need to remove it from the fix list
-		removeFromLossFixList(x);
+		removeFromFixList(x, x->rank->loss, x->rank->losscount, four, three);
 		
 		if (!x->rank->left) // Need new ranklist node
 		{
@@ -512,7 +457,7 @@ struct StrictFibonacciHeap // The actual heap
 		pfixlist a = new FixlistNode();
 		a->node = x;
 		a->rank = x->rank;
-		if (x->loss) insertIntoFixList(a, x->rank->loss, four, three);
+		if (x->loss) insertIntoFixList(a, x->rank->loss, x->rank->losscount, four, three);
 	}
 	void oneNodeLossReduction(pnode x)
 	{
@@ -525,7 +470,7 @@ struct StrictFibonacciHeap // The actual heap
 		pfixlist a = new FixlistNode();
 		a->node = x;
 		a->rank = x->rank;
-		insertIntoFixList(a, a->rank->active, one, two);
+		insertIntoFixList(a, a->rank->active, a->rank->rootcount, one, two);
 		// Rank of y is decreased
 		decreaseRank(y);
 		// If y is not active, loss is increased
@@ -544,39 +489,23 @@ struct StrictFibonacciHeap // The actual heap
 	}
 	void lossReduction() // Does one of the two loss reductions
 	{
-		if (four) // Can do a loss reduction
+		if (four)
 		{
-			if (four->node->loss >= 2) // one node loss reduction
+			if (four->node->loss > 1) // One node loss reduction
 			{
 				pnode x = four->node;
-				four = four->right;
-				if (four)
-				{
-			//		delete(four->left); // Deallocate memory
-					four->left = NULL;
-				}
-				// Update rank pointer
-				if (four && four->rank == x->rank) x->rank->loss = four;
-				else x->rank->loss = NULL;
+				removeFromFixList(x, x->rank->loss, x->rank->losscount, four, three); // Remove x from the fix list
 				oneNodeLossReduction(x);
-				lossReduction();
 			}
 			else // Two node loss reduction
 			{
-				assert(four->rank == four->right->rank);
 				pnode x = four->node;
-				four = four->right;
-				pnode y = four->node;
-				four = four->right;
-				if (four)
-				{
-					four->left = NULL; // Remove left pointer
-				}
-				// Update rank pointer
-				if (four && four->rank == x->rank) x->rank->loss = four;
-				else x->rank->loss = NULL;
+				assert(four->rank->loss);
+				removeFromFixList(x, x->rank->loss, x->rank->losscount, four, three); // Remove x from the fix list
+				pnode y = x->rank->loss->node;	
+				assert(x->rank == y->rank);
+				removeFromFixList(y, y->rank->loss, y->rank->losscount, four, three); // Remove y from the fix list
 				twoNodeLossReduction(x, y);
-				lossReduction();
 			}
 		}
 	}
@@ -652,8 +581,15 @@ struct StrictFibonacciHeap // The actual heap
 				qfront = oldroot;
 			}
 		}
-		// active root reduction and root degree reduction
-		while (rootDegreeReduction() || activeRootReduction()) {}
+		// Active root reduction and root degree reduction
+		int arrcount = 0;
+		int rdrcount = 0;
+		while (arrcount < 1 && rdrcount < 1)
+		{
+			if (arrcount < 1 && activeRootReduction()) arrcount++;
+			else if (rdrcount < 1 && rootDegreeReduction()) rdrcount++;
+			else break; // Not possible, break
+		}
 	}
 	void push(int val)
 	{
@@ -675,16 +611,15 @@ struct StrictFibonacciHeap // The actual heap
 			// Decrease rank of y
 			decreaseRank(y);
 			// Make loss of x 0
-			removeFromLossFixList(x);
+			removeFromFixList(x, x->rank->loss, x->rank->losscount, four, three);
 			x->loss = 0;
 			// Make x an active root, insert into fix list
 			pfixlist a = new FixlistNode();
 			a->node = x;
 			a->rank = x->rank;
-			insertIntoFixList(a, a->rank->active, one, two);
+			insertIntoFixList(a, a->rank->active, a->rank->rootcount, one, two);
 		}
 		link(root, x); // Make x a child of the root
-
 		if (y->active->isactive && !isActiveRoot(y))
 		{
 			// Increase the loss of y
@@ -692,7 +627,14 @@ struct StrictFibonacciHeap // The actual heap
 		}
 		lossReduction(); // A loss reduction if possible
 		// DO six active root reductions and four root degree reductions, to the extent possible
-		while (rootDegreeReduction() || activeRootReduction()) {}
+		int arrcount = 0;
+		int rdrcount = 0;
+		while (arrcount < 6 && rdrcount < 4)
+		{
+			if (arrcount < 6 && activeRootReduction()) arrcount++;
+			else if (rdrcount < 4 && rootDegreeReduction()) rdrcount++;
+			else break; // Not possible, break
+		}
 	}
 	void pop()
 	{
@@ -715,7 +657,7 @@ struct StrictFibonacciHeap // The actual heap
 		if (x->active->isactive)
 		{
 			// Remove from active root fix list
-			removeFromActiveRootFixList(x);
+			removeFromFixList(x, x->rank->active, x->rank->rootcount, one, two);
 			// Make passive
 			x->active = passive;
 			// Make all active children of x active roots
@@ -725,13 +667,13 @@ struct StrictFibonacciHeap // The actual heap
 				while (a->active->isactive)
 				{
 					// Remove loss
-					removeFromLossFixList(a);
+					removeFromFixList(a, a->rank->loss, a->rank->losscount, four, three);
 					a->loss = 0;
 					// Insert into fix list
 					pfixlist b = new FixlistNode();
 					b->node = a;
 					b->rank = a->rank;
-					insertIntoFixList(b, b->rank->active, one, two); // Add to active root fix list
+					insertIntoFixList(b, b->rank->active, b->rank->rootcount, one, two); // Add to active root fix list
 					a = a->right;
 					if (a == x->child) break;
 				}
