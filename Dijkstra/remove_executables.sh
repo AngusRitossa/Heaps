@@ -6,6 +6,7 @@ rm fibonacci
 rm naive
 rm pairing
 rm rankpairing
+rm violation
 rm strictfibonacci
 rm d-ary
 rm gen
