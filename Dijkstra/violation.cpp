@@ -1,4 +1,4 @@
-// Dijkstra's algorithm implemented with a fibonacci heap: O(e + vlogv)
+// Dijkstra's algorithm implemented with a violation heap: O(e + vlogv)
 #include <cstdio>
 #include <vector>
 #include <utility>

@@ -7,5 +7,6 @@ The following heaps are implemented in C++. All of the heaps have been used to i
 - Fibonacci 
 - Pairing 
 - Rank-Pairing 
+- Quake
 - Violation
 - Strict Fibonacci
