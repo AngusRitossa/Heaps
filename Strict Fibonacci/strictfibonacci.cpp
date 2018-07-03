@@ -1,6 +1,6 @@
 // Strict fibonacci heap (minimum)
-// Currently no merge operation
-// Worst case complexities: O(1) push, top & decrease-key, O(log(n)) pop & erase
+// Just added merge
+// Worst case complexities: O(1) push, top, decrease-key, merge, O(log(n)) pop & erase
 typedef struct HeapNode* pnode;
 typedef struct ActiveRecord* pactivenode;
 typedef struct RanklistNode* pranklist;
@@ -42,12 +42,11 @@ struct FixlistNode
 	pfixlist left, right; // Left and right nodes in the fixlist
 	pranklist rank; // Points to the node in the ranklist with this rank
 };
-
+int counter; // Used to assign indexes to nodes
 struct StrictFibonacciHeap // The actual heap
 {
 	pnode root;
 	int sz;
-	int counter; // Used to assign indexes to nodes
 	pactivenode activenode; // Nodes in the heap point here if they are active
 	pnode nonlinkablechild; // Leftmost passive, non linkable child. Otherwise its the rightmost active child. Else null.
 	pnode qfront; // Front of the queue
@@ -61,10 +60,14 @@ struct StrictFibonacciHeap // The actual heap
 	// Part 4: Active nodes with loss > 1 or loss 1 where there are multiple nodes of the same rank
 
 	// Auxilary functions
-	StrictFibonacciHeap() // Assign the active node pointer
+	StrictFibonacciHeap() // Assign the active node pointer, initialise variables to 0/NULL
 	{
 		activenode = new ActiveRecord();
 		activenode->isactive = 1;
+		nonlinkablechild = qfront = root = NULL;
+		ranklist = NULL;
+		one = two = three = four = NULL;
+		sz = 0;
 	}
 	int size()
 	{
@@ -110,6 +113,7 @@ struct StrictFibonacciHeap // The actual heap
 	// Transformations
 	void link(pnode x, pnode y) // Makes y a child of x
 	{
+		assert(y->val->val > x->val->val);
 		if (y->parent) // If y is not the old root
 		{
 			if (y == nonlinkablechild) // Update the non linkable child if needed.
@@ -227,7 +231,7 @@ struct StrictFibonacciHeap // The actual heap
 		// Count is the number of nodes of that rank in the fix list
 		// One and two are pointers to the first and second fix lists
 		// Note if this is a insertion due to loss, active should be the loss pointer and one and two should be pointers to the forth and third fix lists
-		assert(a->node->fix == NULL);
+			
 		a->node->fix = a;
 		if (!count)
 		{
@@ -302,8 +306,6 @@ struct StrictFibonacciHeap // The actual heap
 		x->rank = x->rank->left;
 		x->node->rank = x->rank;
 		x->rank->count++;
-		// Delete fixlist node y
-	//	delete y;
 		// Reinsert x into the fix list
 		insertIntoFixList(x, x->rank->active, x->rank->rootcount, one, two);
 		return true;
@@ -335,7 +337,7 @@ struct StrictFibonacciHeap // The actual heap
 		// Make x the leftmost child of the root
 		root->child = x;
 		// Update nonlinkablechild if needed
-		if (nonlinkablechild == NULL) nonlinkablechild = x;
+		if (nonlinkablechild == NULL && !isPassiveLinkable(x)) nonlinkablechild = x;
 		pranklist r = ranklist;
 		if (r == NULL)
 		{
@@ -379,7 +381,7 @@ struct StrictFibonacciHeap // The actual heap
 	}
 	void removeFromFixList(pnode x, pfixlist &active, int &count, pfixlist &one, pfixlist &two) // Remove x from the fix list, moving the other items if needed
 	{
-		if (x->fix)
+		if (x->fix && x->active->isactive)
 		{
 			pfixlist a = x->fix;	
 			assert(a);
@@ -505,6 +507,20 @@ struct StrictFibonacciHeap // The actual heap
 				removeFromFixList(y, y->rank->loss, y->rank->losscount, four, three); // Remove y from the fix list
 				twoNodeLossReduction(x, y);
 			}
+		}
+	}
+	void addToBackOfQueue(pnode a, pnode &qfront)
+	{
+		if (!qfront) // A is the only thing in the queue
+		{
+			qfront = a->qleft = a->qright = a;
+		}
+		else // Insert to the left of qfront
+		{
+			a->qleft = qfront->qleft;
+			a->qleft->qright = a;
+			a->qright = qfront;
+			qfront->qleft = a;
 		}
 	}
 	pnode newNode(pvalue v)
@@ -770,5 +786,78 @@ struct StrictFibonacciHeap // The actual heap
 		decreasekey(x, -2e9);
 		// Pop
 		pop();
+	}
+
+	void merge(StrictFibonacciHeap* x) // Merge operation, seems to be behaving correctly
+	{
+		if (!x->sz)
+		{
+			// No point merging
+			return;
+		}
+		if (x->sz > sz) // Swap the heaps
+		{
+			// Set our fix list to x's fix list
+			one = x->one;
+			two = x->two;
+			three = x->three;
+			four = x->four;
+			ranklist = x->ranklist;
+			// Swap queues & activenodes
+			swap(qfront, x->qfront);
+			std::swap(activenode, x->activenode);
+			if (!sz) // We currently have no elements, just set to x
+			{
+				sz = x->sz;
+				root = x->root;
+				return;
+			}
+		}
+		// Make all nodes in x passive
+		x->activenode->isactive = false;
+		pnode newqueue = x->qfront;
+		if (root->val->val < x->root->val->val)
+		{
+			if (x->sz > sz) nonlinkablechild = NULL; // all children of root are now passive linkable
+			// Link x->root to root;
+			link(root, x->root);
+			// Add x->root to the end of the queue
+			addToBackOfQueue(x->root, newqueue);
+		}
+		else
+		{
+			if (x->sz <= sz) nonlinkablechild = NULL; // all children of x->root are now passive linkable
+			else nonlinkablechild = x->nonlinkablechild;
+			// Since all nodes in x are passive-linkable now, set non-linkable child to null
+			pnode a = root;
+			root = x->root;
+			link(root, a);
+			// Add a to the end of the queue
+			addToBackOfQueue(a, newqueue);
+		}
+		sz += x->sz;
+		// Now, add our old queue to the end of the queue
+		if (qfront)
+		{
+			pnode last = qfront->qleft;
+
+			newqueue->qleft->qright = qfront;
+			qfront->qleft = newqueue->qleft;
+
+			newqueue->qleft = last;
+			last->qright = newqueue;
+		}
+		if (nonlinkablechild) assert(!isPassiveLinkable(nonlinkablechild));
+		qfront = newqueue;
+		// Active root reduction and root degree reduction
+		int arrcount = 0;
+		int rdrcount = 0;
+
+		while (arrcount < 1 && rdrcount < 1)
+		{
+			if (arrcount < 1 && activeRootReduction()) arrcount++;
+			else if (rdrcount < 1 && rootDegreeReduction()) rdrcount++;
+			else break; // Not possible, break
+		}
 	}
 };
