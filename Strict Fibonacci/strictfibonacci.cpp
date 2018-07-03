@@ -110,8 +110,6 @@ struct StrictFibonacciHeap // The actual heap
 	// Transformations
 	void link(pnode x, pnode y) // Makes y a child of x
 	{
-		// TODO: Special case the root (passive linkable vs passive)
-		assert(x->val->val < y->val->val);
 		if (y->parent) // If y is not the old root
 		{
 			if (y == nonlinkablechild) // Update the non linkable child if needed.
@@ -760,9 +758,9 @@ struct StrictFibonacciHeap // The actual heap
 			{
 				link(root, y->child->left);
 			}
-			// Do a loss reduction
-			lossReduction();
 		}
+		// Do a loss reduction
+		lossReduction();
 		// Do active root reductions and root degree reductions while possible
 		while (rootDegreeReduction() || activeRootReduction()) {}
 	}
