@@ -605,7 +605,7 @@ struct StrictFibonacciHeap // The actual heap
 		// Active root reduction and root degree reduction
 		int arrcount = 0;
 		int rdrcount = 0;
-		while (arrcount < 1 && rdrcount < 1)
+		while (arrcount < 1 || rdrcount < 1)
 		{
 			if (arrcount < 1 && activeRootReduction()) arrcount++;
 			else if (rdrcount < 1 && rootDegreeReduction()) rdrcount++;
@@ -650,7 +650,7 @@ struct StrictFibonacciHeap // The actual heap
 		// DO six active root reductions and four root degree reductions, to the extent possible
 		int arrcount = 0;
 		int rdrcount = 0;
-		while (arrcount < 6 && rdrcount < 4)
+		while (arrcount < 6 || rdrcount < 4)
 		{
 			if (arrcount < 6 && activeRootReduction()) arrcount++;
 			else if (rdrcount < 4 && rootDegreeReduction()) rdrcount++;
@@ -860,7 +860,7 @@ struct StrictFibonacciHeap // The actual heap
 		int arrcount = 0;
 		int rdrcount = 0;
 
-		while (arrcount < 1 && rdrcount < 1)
+		while (arrcount < 1 || rdrcount < 1)
 		{
 			if (arrcount < 1 && activeRootReduction()) arrcount++;
 			else if (rdrcount < 1 && rootDegreeReduction()) rdrcount++;
