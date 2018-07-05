@@ -1,4 +1,4 @@
-// Dijkstra's algorithm implemented with a STL binary heap: O((v + e) log e)
+// Dijkstra's algorithm implemented with a STL heap: O((v + e) log e)
 #include <cstdio>
 #include <vector>
 #include <utility>

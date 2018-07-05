@@ -7,6 +7,7 @@ rm naive
 rm pairing
 rm rankpairing
 rm hollow
+rm smooth
 rm quake
 rm violation
 rm strictfibonacci

@@ -9,5 +9,6 @@ The following heaps are implemented in C++. All of the heaps have been used to i
 - Pairing 
 - Quake
 - Rank-Pairing 
+- Smooth
 - Strict Fibonacci
 - Violation
