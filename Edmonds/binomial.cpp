@@ -1,4 +1,4 @@
-// Edmonds minimal branching algorithm with fibonacci heap, O(e log v)
+// Edmonds minimal branching algorithm with binomial heap, O(e log v)
 // Calculates the total length of the minimum spanning arborescence rooted at 0. Can be modified to return the edges used. 
 #include <cstdio>
 #include <algorithm>
@@ -90,37 +90,33 @@ struct Edge // Stores a directed edge from u to v
 	}
 };
 
-// Fibonacci Heap
-typedef struct FibNode* pnode;
-struct FibNode
+// Binomial Heap
+typedef struct BinomialNode* pnode;
+struct BinomialNode
 {
 	Edge val;
-	int degree; // Value of the node and number of children
-	bool onechildcut; // Whether one of its children has been cut due to increase key
-	pnode left, right, child, par; // When the node is the root of the heap, left and right refer to its neighbours in the heap linked list
-	// When the node is not the root of the heap, left and right refer to its neighbouring siblings
+	int node;
+	int degree;
+	pnode sibling, child, par; // sibling is either in the heap linked list of the sibling within a tree. 
 };
-// Global variables, used for intermediate storage during the pop function
-pnode _ofsize[100];
-int _ofsizedone[100], _ofsizeupto;
-namespace fibheapalloc
+namespace binomialheapalloc
 {
 // Nodes are allocated from this array
-FibNode _heap[MAXEDGES]; 
+BinomialNode _heap[MAXEDGES]; 
 int _heapallocupto;
 pnode _newnode(Edge val)
 {
 	pnode _new = _heap + _heapallocupto++; // Dynamic allocation is slow ... this is much faster
-	//pnode _new = new FibNode(); // Other method of allocating memory
+	//pnode _new = new BinomialNode(); // Other method of allocating memory
 	_new->val = val;
 	return _new;
 }
 }
-struct FibHeap
+struct BinomialHeap
 {
-	pnode mn; // Pointer to the minimum value in the heap
-	int sz; // Number of elements in the heap
-	pnode temproot; // Used in the pop function
+	pnode root = NULL;
+	int sz = 0;
+	pnode mn = NULL;
 	// Auxiliary functions
 	int size()
 	{
@@ -140,162 +136,159 @@ struct FibHeap
 		a = b;
 		b = c;
 	}
-	pnode mergetrees(pnode a, pnode b) // Merges trees with equal degree, creating one tree with degree+1
+	void swap(int &a, int &b) // Swaps two ints. Created to remove any reliance on STL
+	{
+		int c = a;
+		a = b;
+		b = c;
+	}
+	pnode mergetrees(pnode a, pnode b, pnode pre = NULL) // Merges trees with equal degree, creating one tree with degree+1
 	{
 		if (b->val.val() < a->val.val())
 		{
 			// Swap them & replace a with b in the linked list
-			b->left = a->left;
-			b->right = a->right;
-			b->left->right = b->right->left = b;
-			if (temproot == a) temproot = b;
+			if (pre) pre->sibling = b;
+			if (root == a) root = b;
+			a->sibling = b->sibling;
 			swap(a, b);
-			if (a->left == b) // If there is one tree in the heap, need to fix this
-			{
-				a->left = a->right = a;
-			}
 		}
 		// Make tree b the child of tree a
+		a->sibling = b->sibling;
 		a->degree++;
-		b->right = a->child;
-		if (b->right) b->right->left = b;
-		b->left = NULL;
+		b->sibling = a->child;
 		a->child = b;
 		b->par = a;
+		if (mn == NULL || a->val.val() <= mn->val.val()) mn = a;
 		return a;
-	}
-	void addintoheap(pnode _new) // Inserts the node into the heap linked list
-	{
-		_new->right = mn->right;
-		_new->left = mn;
-		mn->right = _new;
-		_new->right->left = _new;
-		// If the new value is smaller, set as root
-		if (_new->val.val() < mn->val.val())
-		{
-			mn = _new;
-		}
 	}
 
 	// Main functions
-	void push(pnode _new) // Insert a node into the heap
+	void push(pnode _new)
 	{
-		if (!sz)
-		{
-			// If the heap is empty, just set this as the only node
-			sz++;
-			mn = _new;
-			mn->left = mn->right = mn; // Make sure linked list is circular
-			return;
-		}
-		// Add new node into linked list
+		// Worst case O(log(n)) - average O(1)
 		sz++;
-		addintoheap(_new);
+		if (mn == NULL || _new->val.val() < mn->val.val()) mn = _new; // Update mn if needed
+		_new->sibling = root; // Set this new node as the first one
+		root = _new; // set as root
+		while (_new->sibling && _new->degree == _new->sibling->degree) // Will merge until no longer necessary, then break
+		{
+			_new = mergetrees(_new, _new->sibling);
+		}
 	}
-	void push(Edge val) // Insert a value into the heap
+	void push(Edge val)
 	{
-		pnode _new = fibheapalloc::_newnode(val);
+		pnode _new = binomialheapalloc::_newnode(val);
 		push(_new);
 	}
-
-	void pop() // Remove the largest element from the heap
+	void merge(pnode b)
+	{
+		pnode a = root;
+		pnode pre = NULL;
+		while (a && b)
+		{
+			if (mn == NULL || b->val.val() < mn->val.val()) mn = b; // update mn if needed
+			if (mn == NULL || a->val.val() < mn->val.val()) mn = a; // update mn if needed
+			b->par = NULL; // Its a root - has no parent
+			a->par = NULL; // Its a root - has no parent
+			if (a->degree < b->degree)
+			{
+				// add a to the new list
+				if (pre) pre->sibling = a;
+				else root = a;
+				pre = a;
+				a = a->sibling;
+			}
+			else if (b->degree < a->degree)
+			{
+				// add b to the new list
+				if (pre) pre->sibling = b;
+				else root = b;
+				pre = b;
+				b = b->sibling;
+			}
+			else
+			{
+				// add a to b's linked list - merge where necessary
+				pnode asib = a->sibling;
+				a->sibling = b;
+				b = a;
+				a = asib;
+				while (b->sibling && b->degree == b->sibling->degree) // Will merge until no longer necessary, then break
+				{
+					b = mergetrees(b, b->sibling);
+				}
+			}
+		}
+		while (a) // Add to the end
+		{
+			if (mn == NULL || a->val.val() < mn->val.val()) mn = a; // update mn if needed
+			a->par = NULL; // Its a root - has no parent
+			if (pre) pre->sibling = a;
+			else root = a;
+			pre = a;
+			a = a->sibling;
+		}
+		while (b) // Add to the end
+		{
+			if (mn == NULL || b->val.val() < mn->val.val()) mn = b; // update mn if needed
+			b->par = NULL; // Its a root - has no parent
+			if (pre) pre->sibling = b;
+			else root = b;
+			pre = b;
+			b = b->sibling;
+		}
+		pre->sibling = NULL;
+	}
+	void merge(BinomialHeap* A)
+	{
+		if (!A->root) return;
+		sz += A->sz;
+		merge(A->root);		
+	}
+	void pop()
 	{
 		sz--;
-		if (!sz) // If only one element, just remove it
+		pnode a = root;
+		pnode pre = NULL;
+		while (a != mn) // Find the tree with mn
 		{
-			mn = NULL;
-			return;
-		}
-		// Remove mx from the heap
-		if (mn->left == mn) // If there was only one node in the heap - special case
+			pre = a;
+			a = a->sibling;
+		}	
+		mn = NULL;
+		// Remove it from the tree
+		if (pre)
 		{
-			// The heap will just consist of the children of mx
-			// Set the first child as the root, insert the rest
-			mn = temproot = mn->child;
-			pnode child = mn->right;
-			mn->left = mn->right = mn;
-			while (child != NULL)
-			{
-				pnode nextchild = child->right;
-				addintoheap(child);
-				if (child->val.val() < mn->val.val()) mn = child;
-				child = nextchild;
-			}
-			// The heap is now sufficient (since there were at most log children)
-			return;
+			pre->sibling = a->sibling;
 		}
 		else
-		{	
-			temproot = mn->left;
-			temproot->right = mn->right;
-			temproot->right->left = temproot;
+		{
+			root = a->sibling;
+		}
 
-			// Add the children of mx to the heap
-			pnode child = mn->child;
-			while (child != NULL)
+		// Reverse the linked list of A's children
+		pre = NULL;
+		a = a->child;
+		while (a)
+		{
+			pnode next = a->sibling;
+			a->sibling = pre;
+			pre = a;
+			a = next;
+		}
+		if (pre) merge(pre); // Merge the children back into the heap.
+		else
+		{
+			pnode b = root;
+			while (b)
 			{
-				pnode nextchild = child->right; // Store the next child because it will be lost when we insert child into the heap
-				// Insert child into heap
-				child->right = temproot->right;
-				child->left = temproot;
-				temproot->right = child;
-				child->right->left = child;
-				child->par = NULL;
-				// Set child to its sibling
-				child = nextchild;
+				if (mn == NULL || b->val.val() < mn->val.val()) mn = b;
+				b = b->sibling;
 			}
 		}
-		// Fix the heap by merging trees of the same priority
-		pnode a = temproot;
-		mn = temproot;
-		_ofsizeupto++;
-		do
-		{
-			while (_ofsizedone[a->degree] == _ofsizeupto) // While there is a tree to merge with
-			{
-				_ofsizedone[a->degree] = 0;
-				pnode b = _ofsize[a->degree];
-				// remove b from tree
-				if (b == temproot)
-				{
-					temproot = b->right;
-				}
-				b->left->right = b->right;
-				b->right->left = b->left;
-				// merge a & b
-				a = mergetrees(a, b);
-			}
-			_ofsizedone[a->degree] = _ofsizeupto;
-			_ofsize[a->degree] = a;
-			if (mn->val.val() >= a->val.val()) mn = a;
-			a = a->right;
-		}
-		while (a != temproot);
-	}
-	void merge(FibHeap *a) // Merge Fibonacci Heap a into this heap
-	{
-		// Cut each heap between their minimum and the element to the right of that, then splice together
-		sz += a->sz; // update size of heap
-		if (!mn)
-		{
-			mn = a->mn;
-			return;
-		}
-		if (!a->mn) return;
-		pnode b = a->mn; 
-		pnode br = b->right;
-		pnode mnr = mn->right;
-
-		b->right = mnr;
-		
-		mnr->left = b;
-
-		mn->right = br;
-		br->left = mn;
-		if (b->val.val() < mn->val.val()) mn = b; // Update min if needed
 	}
 };
-FibHeap* incoming[2*MAXN]; // Stores incoming edges in a pairing heap
+BinomialHeap* incoming[2*MAXN]; // Stores incoming edges in a pairing heap
 int v, e; // Numbers of vertices and edges
 ll ans; // Stores the weight of the minimum spanning tree
 queue<int> roots; // Stores all the roots to be processed
@@ -307,7 +300,7 @@ int main()
 	// Declare memory
 	for (int i = 0; i < 2*MAXN; i++)
 	{
-		incoming[i] = new FibHeap();
+		incoming[i] = new BinomialHeap();
 	}
 	for (int i = 0; i < e; i++)
 	{
@@ -360,6 +353,7 @@ int main()
  			}
  			// Remove mxedge from cost
  			ans -= mxedge.val();
+ 			
  			int s = supernodes.upto++; // New supernode
  			// Go over the cycle again, merging the incoming edge lists
  			b = supernodes.findrep(e.u);

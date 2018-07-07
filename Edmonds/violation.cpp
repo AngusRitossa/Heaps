@@ -1,4 +1,4 @@
-// Edmonds minimal branching algorithm with fibonacci heap, O(e log v)
+// Edmonds minimal branching algorithm with violation heap, O(e log v)
 // Calculates the total length of the minimum spanning arborescence rooted at 0. Can be modified to return the edges used. 
 #include <cstdio>
 #include <algorithm>
@@ -90,38 +90,32 @@ struct Edge // Stores a directed edge from u to v
 	}
 };
 
-// Fibonacci Heap
-typedef struct FibNode* pnode;
-struct FibNode
+// Violation Heap
+typedef struct ViolationNode* pnode;
+struct ViolationNode
 {
 	Edge val;
-	int degree; // Value of the node and number of children
-	bool onechildcut; // Whether one of its children has been cut due to increase key
-	pnode left, right, child, par; // When the node is the root of the heap, left and right refer to its neighbours in the heap linked list
-	// When the node is not the root of the heap, left and right refer to its neighbouring siblings
+	int rank;
+	bool isRoot;
+	pnode child, left, right; // Pointer two leftmost child, right/left nodes in sibling linked list/main linked list
 };
-// Global variables, used for intermediate storage during the pop function
-pnode _ofsize[100];
-int _ofsizedone[100], _ofsizeupto;
-namespace fibheapalloc
-{
+
 // Nodes are allocated from this array
-FibNode _heap[MAXEDGES]; 
-int _heapallocupto;
-pnode _newnode(Edge val)
+ViolationNode nodesForAlloc[MAXEDGES]; 
+int heapallocupto;
+pnode newnode(Edge val)
 {
-	pnode _new = _heap + _heapallocupto++; // Dynamic allocation is slow ... this is much faster
-	//pnode _new = new FibNode(); // Other method of allocating memory
+	pnode _new = nodesForAlloc + heapallocupto++; // Dynamic allocation is slow ...
 	_new->val = val;
 	return _new;
 }
-}
-struct FibHeap
+pnode _first[100], _second[100]; // Used for intermediary storage during pop
+int mxrank; // Used for intermediary storage
+struct ViolationHeap
 {
-	pnode mn; // Pointer to the minimum value in the heap
-	int sz; // Number of elements in the heap
-	pnode temproot; // Used in the pop function
-	// Auxiliary functions
+	pnode root; // Pointer to root of heap containing minimum value
+	int sz;
+	// Auxilary functions
 	int size()
 	{
 		return sz;
@@ -132,170 +126,182 @@ struct FibHeap
 	}
 	ll top()
 	{
-		return mn->val.val();
+		return root->val.val();
 	}
-	void swap(pnode &a, pnode &b) // Swaps two pnodes. Created to remove any reliance on STL
+	int rank(pnode a) // Computes the rank of the node
+	{
+		// Calculated by adding 1 to the ceiling of the average of the rank of the first two children
+		int r = 0;
+		if (a->child)
+		{
+			r += a->child->rank;
+			if (a->child->right)
+			{
+				r += a->child->right->rank;
+			}
+			else r--; // Rank of NULL node is -1
+		}
+		else r--; // Rank of NULL node is -1
+		return r/2 + 1;
+	}
+	void swap(pnode &a, pnode &b) // Swaps two pnodes
 	{
 		pnode c = a;
 		a = b;
 		b = c;
 	}
-	pnode mergetrees(pnode a, pnode b) // Merges trees with equal degree, creating one tree with degree+1
+	void insertIntoHeap(pnode a, pnode &root) // Inserts a into the heap rooted at root
 	{
-		if (b->val.val() < a->val.val())
+		a->isRoot = true;
+		if (!root) // Heap is empty, just add in a
 		{
-			// Swap them & replace a with b in the linked list
-			b->left = a->left;
-			b->right = a->right;
-			b->left->right = b->right->left = b;
-			if (temproot == a) temproot = b;
-			swap(a, b);
-			if (a->left == b) // If there is one tree in the heap, need to fix this
-			{
-				a->left = a->right = a;
-			}
+			root = a->left = a->right = a;
+			return;
 		}
-		// Make tree b the child of tree a
-		a->degree++;
-		b->right = a->child;
-		if (b->right) b->right->left = b;
-		b->left = NULL;
-		a->child = b;
-		b->par = a;
-		return a;
+		// Add to the right of root
+		pnode b = root->right;
+		b->left = a;
+		a->right = b;
+		root->right = a;
+		a->left = root;
+		// Update root if needed
+		if (a->val.val() < root->val.val()) root = a;
 	}
-	void addintoheap(pnode _new) // Inserts the node into the heap linked list
+	void swapFirstTwoChildren(pnode a) // Swaps first two children of a so that the rank of the first is at least the rank of the second
 	{
-		_new->right = mn->right;
-		_new->left = mn;
-		mn->right = _new;
-		_new->right->left = _new;
-		// If the new value is smaller, set as root
-		if (_new->val.val() < mn->val.val())
+		if (!a->child || !a->child->right) return; // Doesn't have two children
+		pnode b = a->child;
+		pnode c = b->right;
+		if (b->rank < c->rank) // Needs swapping
 		{
-			mn = _new;
+			c->left = a;
+			b->right = c->right;
+			if (c->right) c->right->left = b;
+			c->right = b;
+			b->left = c;
+			a->child = c;
 		}
+	}
+	pnode merge(pnode a, pnode b, pnode c)
+	{
+		// Swap so that a->val <= b->val && c->val
+		if (b->val.val() <= a->val.val() && b->val.val() <= c->val.val()) swap(a, b); // B is the smallest
+		else if (c->val.val() <= a->val.val() && c->val.val() <= b->val.val()) swap(a, c); // C is the smallest
+		swapFirstTwoChildren(a); // Ensure old active children of a are sorted by rank
+		// Make b and c children of a
+		if (a->child) a->child->left = b;
+		b->right = a->child;
+		b->left = c;
+		c->right = b;
+		c->left = a;
+		a->child = c; 
+		a->rank = rank(a); // Update rank
+		b->isRoot = c->isRoot = false;
+		return a;
 	}
 
 	// Main functions
-	void push(pnode _new) // Insert a node into the heap
+	void push(pnode a)
 	{
-		if (!sz)
+		sz++;
+		insertIntoHeap(a, root);
+	}
+	void push(Edge val)
+	{
+		push(newnode(val));
+	}
+	void merge(pnode a)
+	{
+		if (!root)
 		{
-			// If the heap is empty, just set this as the only node
-			sz++;
-			mn = _new;
-			mn->left = mn->right = mn; // Make sure linked list is circular
+			// Just make a the root
+			root = a;
 			return;
 		}
-		// Add new node into linked list
-		sz++;
-		addintoheap(_new);
-	}
-	void push(Edge val) // Insert a value into the heap
-	{
-		pnode _new = fibheapalloc::_newnode(val);
-		push(_new);
-	}
+		// Insert a's heap in between a and a->right
+		pnode b = a->right;
+		pnode x = root->right;
 
-	void pop() // Remove the largest element from the heap
+		root->right = b;
+		b->left = root;
+
+		a->right = x;
+		x->left = a;
+		// Update root if needed
+		if (a->val.val() < root->val.val()) root = a;
+	}
+	void merge(ViolationHeap *a)
+	{
+		sz += a->sz;
+		if (!root) root = a->root;
+		else if (a->root) merge(a->root);
+	}
+	void dealWithNode(pnode a) // Does possible merges
+	{
+		int r = a->rank;
+		if (r > mxrank) mxrank = r; // Update maximum seen rank if needed
+		if (!_first[r]) _first[r] = a; // First occurrence of this rank
+		else if (!_second[r]) _second[r] = a; // Second occurrence of this rank
+		else
+		{
+			// Merge them
+			a = merge(a, _first[r], _second[r]);
+			_first[r] = _second[r] = NULL;
+			dealWithNode(a);
+		}
+	}
+	void pop()
 	{
 		sz--;
-		if (!sz) // If only one element, just remove it
+		if (!sz) // Heap is now empty
 		{
-			mn = NULL;
+			root = NULL;
 			return;
 		}
-		// Remove mx from the heap
-		if (mn->left == mn) // If there was only one node in the heap - special case
+		mxrank = 0;
+		// Insert all children of the old root into the new heap, then insert all the other heaps
+		// Merging where possible
+		pnode a = root->child;
+		while (a)
 		{
-			// The heap will just consist of the children of mx
-			// Set the first child as the root, insert the rest
-			mn = temproot = mn->child;
-			pnode child = mn->right;
-			mn->left = mn->right = mn;
-			while (child != NULL)
-			{
-				pnode nextchild = child->right;
-				addintoheap(child);
-				if (child->val.val() < mn->val.val()) mn = child;
-				child = nextchild;
-			}
-			// The heap is now sufficient (since there were at most log children)
-			return;
+			pnode next = a->right;
+			dealWithNode(a);
+			a = next;
 		}
-		else
-		{	
-			temproot = mn->left;
-			temproot->right = mn->right;
-			temproot->right->left = temproot;
-
-			// Add the children of mx to the heap
-			pnode child = mn->child;
-			while (child != NULL)
-			{
-				pnode nextchild = child->right; // Store the next child because it will be lost when we insert child into the heap
-				// Insert child into heap
-				child->right = temproot->right;
-				child->left = temproot;
-				temproot->right = child;
-				child->right->left = child;
-				child->par = NULL;
-				// Set child to its sibling
-				child = nextchild;
-			}
-		}
-		// Fix the heap by merging trees of the same priority
-		pnode a = temproot;
-		mn = temproot;
-		_ofsizeupto++;
-		do
+		// Now deal with all other nodes in the heap
+		a = root->right;
+		while (a != root)
 		{
-			while (_ofsizedone[a->degree] == _ofsizeupto) // While there is a tree to merge with
-			{
-				_ofsizedone[a->degree] = 0;
-				pnode b = _ofsize[a->degree];
-				// remove b from tree
-				if (b == temproot)
-				{
-					temproot = b->right;
-				}
-				b->left->right = b->right;
-				b->right->left = b->left;
-				// merge a & b
-				a = mergetrees(a, b);
-			}
-			_ofsizedone[a->degree] = _ofsizeupto;
-			_ofsize[a->degree] = a;
-			if (mn->val.val() >= a->val.val()) mn = a;
-			a = a->right;
+			pnode next = a->right;
+			dealWithNode(a);
+			a = next;
 		}
-		while (a != temproot);
+		root = NULL;
+		// Make the new heap
+		for (int i = 0; i <= mxrank; i++)
+		{
+			if (_first[i]) 
+			{
+				insertIntoHeap(_first[i], root);
+				_first[i] = NULL;
+			}
+			if (_second[i]) 
+			{
+				insertIntoHeap(_second[i], root);
+				_second[i] = NULL;
+			}
+		}
 	}
-	void merge(FibHeap *a) // Merge Fibonacci Heap a into this heap
+	pnode parent(pnode a)
 	{
-		// Cut each heap between their minimum and the element to the right of that, then splice together
-		sz += a->sz; // update size of heap
-		if (!mn)
-		{
-			mn = a->mn;
-			return;
-		}
-		if (!a->mn) return;
-		pnode b = a->mn; 
-		pnode br = b->right;
-		pnode mnr = mn->right;
-
-		b->right = mnr;
-		
-		mnr->left = b;
-
-		mn->right = br;
-		br->left = mn;
-		if (b->val.val() < mn->val.val()) mn = b; // Update min if needed
+		// Returns the parent of a if a is active, else returns NULL
+		if (a->isRoot) return NULL;
+		if (a->left->child == a) return a->left;
+		if (a->left->left->child == a->left) return a->left->left;
+		return NULL;
 	}
 };
-FibHeap* incoming[2*MAXN]; // Stores incoming edges in a pairing heap
+ViolationHeap* incoming[2*MAXN]; // Stores incoming edges in a heap
 int v, e; // Numbers of vertices and edges
 ll ans; // Stores the weight of the minimum spanning tree
 queue<int> roots; // Stores all the roots to be processed
@@ -307,7 +313,7 @@ int main()
 	// Declare memory
 	for (int i = 0; i < 2*MAXN; i++)
 	{
-		incoming[i] = new FibHeap();
+		incoming[i] = new ViolationHeap();
 	}
 	for (int i = 0; i < e; i++)
 	{
@@ -339,7 +345,7 @@ int main()
 		while (true)
 		{
 			if (incoming[a]->empty()) assert(false); // If this is the case, branching is not possible
-			e = incoming[a]->mn->val;
+			e = incoming[a]->root->val;
 			incoming[a]->pop();
 			if (!supernodes.connected(e.u, e.v)) break; // We have found the edge!
  		}
@@ -360,6 +366,7 @@ int main()
  			}
  			// Remove mxedge from cost
  			ans -= mxedge.val();
+ 			
  			int s = supernodes.upto++; // New supernode
  			// Go over the cycle again, merging the incoming edge lists
  			b = supernodes.findrep(e.u);

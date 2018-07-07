@@ -1,4 +1,4 @@
-// Edmonds minimal branching algorithm with pairing heap, O(e log v)
+// Edmonds minimal branching algorithm with strict fibonacci heap, O(e log v)
 // Calculates the total length of the minimum spanning arborescence rooted at 0. Can be modified to return the edges used. 
 #include <cstdio>
 #include <algorithm>

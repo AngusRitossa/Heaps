@@ -1,4 +1,4 @@
-// Quake heap, O(1) push, decrease-key, merge, O(log(n)) pop
+// Quake heap, O(1) push, decrease-key, O(log(n)) pop, merge
 #define MAXN 1000001
 #define MXRANK 50
 #define A1 4 // Required ratio of amounts of each rank = A1/A2
@@ -175,11 +175,15 @@ struct QuakeHeap
 		b->l = root;
 		a->r = x;
 		x->l = a;
+		if (a->val->val < root->val->val) root = a; // Update root if needed
 	}
-	void merge(QuakeHeap &a)
+	void merge(QuakeHeap *a)
 	{
-		sz += a.sz;
-		merge(a.root);
+		sz += a->sz;
+		merge(a->root);
+		// Then, merge the rank lists
+		for (int i = 0; i <= a->mxrank; i++) am[i] += a->am[i];
+		if (a->mxrank > mxrank) mxrank = a->mxrank;
 	}
 	void pop()
 	{	

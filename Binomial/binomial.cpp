@@ -140,10 +140,11 @@ struct BinomialHeap
 		}
 		pre->sibling = NULL;
 	}
-	void merge(BinomialHeap& A)
+	void merge(BinomialHeap* A)
 	{
-		sz += A.sz;
-		merge(A.root);		
+		if (!A->root) return;
+		sz += A->sz;
+		merge(A->root);		
 	}
 	void pop()
 	{

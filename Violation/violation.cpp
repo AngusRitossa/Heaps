@@ -139,10 +139,11 @@ struct ViolationHeap
 		// Update root if needed
 		if (a->val < root->val) root = a;
 	}
-	void merge(ViolationHeap &a)
+	void merge(ViolationHeap *a)
 	{
-		sz += a.sz;
-		merge(a.root);
+		sz += a->sz;
+		if (!root) root = a->root;
+		else if (a->root) merge(a->root);
 	}
 	void dealWithNode(pnode a) // Does possible merges
 	{

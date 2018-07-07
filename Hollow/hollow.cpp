@@ -205,6 +205,15 @@ struct HollowHeap
 			}
 		}
 	}
+	void merge(HollowHeap *a)
+	{
+		sz += a->sz;
+		if (!root) // Set root to a->root, since this heap is empty
+		{
+			root = a->root;
+		}
+		else if (a->root) insertIntoHeap(a->root);
+	}
 	void erase(pitem item) // Remove item from the heap
 	{
 		pnode a = item->inheap;

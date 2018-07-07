@@ -1,4 +1,4 @@
-// Edmonds minimal branching algorithm with fibonacci heap, O(e log v)
+// Edmonds minimal branching algorithm with hollow heap, O(e log v)
 // Calculates the total length of the minimum spanning arborescence rooted at 0. Can be modified to return the edges used. 
 #include <cstdio>
 #include <algorithm>
@@ -90,38 +90,50 @@ struct Edge // Stores a directed edge from u to v
 	}
 };
 
-// Fibonacci Heap
-typedef struct FibNode* pnode;
-struct FibNode
+// Hollow Heap
+typedef struct Item* pitem;
+typedef struct Node* pnode;
+struct Item // The actual items in the heap
 {
-	Edge val;
-	int degree; // Value of the node and number of children
-	bool onechildcut; // Whether one of its children has been cut due to increase key
-	pnode left, right, child, par; // When the node is the root of the heap, left and right refer to its neighbours in the heap linked list
-	// When the node is not the root of the heap, left and right refer to its neighbouring siblings
+	pnode inheap;
 };
-// Global variables, used for intermediate storage during the pop function
-pnode _ofsize[100];
-int _ofsizedone[100], _ofsizeupto;
-namespace fibheapalloc
+struct Node // Node in the heap. Nodes can be hollow or full. Full nodes contain an item, hollow nodes do not.
 {
-// Nodes are allocated from this array
-FibNode _heap[MAXEDGES]; 
-int _heapallocupto;
-pnode _newnode(Edge val)
+	Edge val; // Value of the node
+	int rank; // Rank, node with rank r has at least F(r+3)-1 descendants, including itself, where F(i) is the ith fibonacci number  
+	pitem item;
+	pnode child, sibling; // Left most child + right sibling
+	pnode secondparent; // If node has two parents, this pointer is to the second
+};
+// Memory allocation
+Item itemalloc[MAXEDGES];
+Node nodealloc[MAXEDGES];
+int itemallocupto, nodeallocupto;
+pitem newitem()
 {
-	pnode _new = _heap + _heapallocupto++; // Dynamic allocation is slow ... this is much faster
-	//pnode _new = new FibNode(); // Other method of allocating memory
+	return itemalloc + itemallocupto++;
+}
+pnode newnode(pitem item, Edge val)
+{
+	pnode _new = nodealloc + nodeallocupto++;
+	_new->item = item;
 	_new->val = val;
+	item->inheap = _new;
 	return _new;
 }
-}
-struct FibHeap
+// Used for intermediary storage during pop
+int mxrank;
+pnode ofrank[100];
+struct HollowHeap
 {
-	pnode mn; // Pointer to the minimum value in the heap
-	int sz; // Number of elements in the heap
-	pnode temproot; // Used in the pop function
-	// Auxiliary functions
+	pnode root;
+	int sz;
+	HollowHeap() // Initialise 
+	{
+		root = NULL;
+		sz = 0;
+	}
+	// Auxilary functions
 	int size()
 	{
 		return sz;
@@ -132,170 +144,158 @@ struct FibHeap
 	}
 	ll top()
 	{
-		return mn->val.val();
+		return root->val.val();
 	}
-	void swap(pnode &a, pnode &b) // Swaps two pnodes. Created to remove any reliance on STL
+	void link(pnode a, pnode b) // Makes a the first child of b
 	{
-		pnode c = a;
-		a = b;
-		b = c;
+		a->sibling = b->child;
+		b->child = a;
 	}
-	pnode mergetrees(pnode a, pnode b) // Merges trees with equal degree, creating one tree with degree+1
+	void insertIntoHeap(pnode a) // Make a the first child of the root, or the root
 	{
-		if (b->val.val() < a->val.val())
+		if (a->val.val() > root->val.val())
 		{
-			// Swap them & replace a with b in the linked list
-			b->left = a->left;
-			b->right = a->right;
-			b->left->right = b->right->left = b;
-			if (temproot == a) temproot = b;
-			swap(a, b);
-			if (a->left == b) // If there is one tree in the heap, need to fix this
-			{
-				a->left = a->right = a;
-			}
+			// Link a to the root
+			link(a, root);
 		}
-		// Make tree b the child of tree a
-		a->degree++;
-		b->right = a->child;
-		if (b->right) b->right->left = b;
-		b->left = NULL;
-		a->child = b;
-		b->par = a;
-		return a;
-	}
-	void addintoheap(pnode _new) // Inserts the node into the heap linked list
-	{
-		_new->right = mn->right;
-		_new->left = mn;
-		mn->right = _new;
-		_new->right->left = _new;
-		// If the new value is smaller, set as root
-		if (_new->val.val() < mn->val.val())
+		else
 		{
-			mn = _new;
+			// a is the new root
+			link(root, a);
+			root = a;
+		}
+	}
+	void ranklinks(pnode a) // Merges until it is the only node of its rank
+	{
+		if (!ofrank[a->rank]) // Only one of its rank
+		{
+			if (a->rank > mxrank) mxrank = a->rank;
+			ofrank[a->rank] = a; 
+		}
+		else // Do merge
+		{
+			pnode b = ofrank[a->rank];
+			ofrank[a->rank] = NULL;
+			if (a->val.val() < b->val.val())
+			{
+				// Make a parent of b
+				link(b, a);
+				a->rank++;
+				ranklinks(a);
+			}
+			else
+			{
+				// Make b parent of a
+				link(a, b);
+				b->rank++;
+				ranklinks(b);
+			}
 		}
 	}
 
 	// Main functions
-	void push(pnode _new) // Insert a node into the heap
+	void push(pnode a)
 	{
-		if (!sz)
+		sz++;
+		if (sz == 1) // A is the only node
 		{
-			// If the heap is empty, just set this as the only node
-			sz++;
-			mn = _new;
-			mn->left = mn->right = mn; // Make sure linked list is circular
+			root = a;
 			return;
 		}
-		// Add new node into linked list
-		sz++;
-		addintoheap(_new);
+		insertIntoHeap(a);
 	}
-	void push(Edge val) // Insert a value into the heap
+	void push(pitem item, Edge val)
 	{
-		pnode _new = fibheapalloc::_newnode(val);
-		push(_new);
+		push(newnode(item, val));
 	}
-
-	void pop() // Remove the largest element from the heap
+	void push(Edge val)
+	{
+		push(newitem(), val);
+	}
+	void merge(HollowHeap *a)
+	{
+		sz += a->sz;
+		if (!root) // Set root to a->root, since this heap is empty
+		{
+			root = a->root;
+		}
+		else if (a->root) insertIntoHeap(a->root);
+	}
+	void pop() // Remove the smallest item from the heap
 	{
 		sz--;
-		if (!sz) // If only one element, just remove it
+		if (!sz) // Heap should now be empty
 		{
-			mn = NULL;
+			root = NULL;
 			return;
 		}
-		// Remove mx from the heap
-		if (mn->left == mn) // If there was only one node in the heap - special case
+		mxrank = 0;
+		pnode l = root; // Linked list of hollow nodes to delete
+		while (l)
 		{
-			// The heap will just consist of the children of mx
-			// Set the first child as the root, insert the rest
-			mn = temproot = mn->child;
-			pnode child = mn->right;
-			mn->left = mn->right = mn;
-			while (child != NULL)
+			pnode v = l;
+			l = l->sibling;
+			pnode a = v->child;
+			while (a) // Process all children of v
 			{
-				pnode nextchild = child->right;
-				addintoheap(child);
-				if (child->val.val() < mn->val.val()) mn = child;
-				child = nextchild;
-			}
-			// The heap is now sufficient (since there were at most log children)
-			return;
-		}
-		else
-		{	
-			temproot = mn->left;
-			temproot->right = mn->right;
-			temproot->right->left = temproot;
-
-			// Add the children of mx to the heap
-			pnode child = mn->child;
-			while (child != NULL)
-			{
-				pnode nextchild = child->right; // Store the next child because it will be lost when we insert child into the heap
-				// Insert child into heap
-				child->right = temproot->right;
-				child->left = temproot;
-				temproot->right = child;
-				child->right->left = child;
-				child->par = NULL;
-				// Set child to its sibling
-				child = nextchild;
-			}
-		}
-		// Fix the heap by merging trees of the same priority
-		pnode a = temproot;
-		mn = temproot;
-		_ofsizeupto++;
-		do
-		{
-			while (_ofsizedone[a->degree] == _ofsizeupto) // While there is a tree to merge with
-			{
-				_ofsizedone[a->degree] = 0;
-				pnode b = _ofsize[a->degree];
-				// remove b from tree
-				if (b == temproot)
+				pnode next = a->sibling;
+				if (a->item) // Is not hollow
 				{
-					temproot = b->right;
+					a->sibling = NULL;
+					ranklinks(a); // Merge with nodes of the same rank, leaving only one node with its rank
 				}
-				b->left->right = b->right;
-				b->right->left = b->left;
-				// merge a & b
-				a = mergetrees(a, b);
+				else // Is hollow
+				{
+					if (a->secondparent) // Has two parents
+					{
+						if (a->secondparent == v) next = NULL; // A is the last child of v
+						else a->sibling = NULL; // A now has no more siblings
+						a->secondparent = NULL; // A now has one parent
+					}
+					else // This was its only parent, add to l so it can be removed from the heap
+					{
+						a->sibling = l;
+						l = a;
+					}
+				}
+				a = next;
 			}
-			_ofsizedone[a->degree] = _ofsizeupto;
-			_ofsize[a->degree] = a;
-			if (mn->val.val() >= a->val.val()) mn = a;
-			a = a->right;
 		}
-		while (a != temproot);
-	}
-	void merge(FibHeap *a) // Merge Fibonacci Heap a into this heap
-	{
-		// Cut each heap between their minimum and the element to the right of that, then splice together
-		sz += a->sz; // update size of heap
-		if (!mn)
+		root = NULL;
+		// Now, merge all nodes to form one heap
+		for (int i = 0; i <= mxrank; i++)
 		{
-			mn = a->mn;
-			return;
+			if (ofrank[i])
+			{
+				if (!root) // Make the root
+				{
+					root = ofrank[i];
+				}
+				else if (ofrank[i]->val.val() < root->val.val()) // Link root to this then make this the root
+				{
+					link(root, ofrank[i]);
+					root = ofrank[i];
+				}
+				else // Link to the root
+				{
+					link(ofrank[i], root);
+				}
+				ofrank[i] = NULL; // Clear the array for future usage
+			}
 		}
-		if (!a->mn) return;
-		pnode b = a->mn; 
-		pnode br = b->right;
-		pnode mnr = mn->right;
-
-		b->right = mnr;
-		
-		mnr->left = b;
-
-		mn->right = br;
-		br->left = mn;
-		if (b->val.val() < mn->val.val()) mn = b; // Update min if needed
+	}
+	void erase(pitem item) // Remove item from the heap
+	{
+		pnode a = item->inheap;
+		if (a == root) pop(); // Is the minimum item, do a pop
+		else
+		{
+			a->item = NULL; // Make hollow
+			item->inheap = NULL;
+		}
 	}
 };
-FibHeap* incoming[2*MAXN]; // Stores incoming edges in a pairing heap
+HollowHeap* incoming[2*MAXN]; // Stores incoming edges in a pairing heap
 int v, e; // Numbers of vertices and edges
 ll ans; // Stores the weight of the minimum spanning tree
 queue<int> roots; // Stores all the roots to be processed
@@ -307,7 +307,7 @@ int main()
 	// Declare memory
 	for (int i = 0; i < 2*MAXN; i++)
 	{
-		incoming[i] = new FibHeap();
+		incoming[i] = new HollowHeap();
 	}
 	for (int i = 0; i < e; i++)
 	{
@@ -339,7 +339,7 @@ int main()
 		while (true)
 		{
 			if (incoming[a]->empty()) assert(false); // If this is the case, branching is not possible
-			e = incoming[a]->mn->val;
+			e = incoming[a]->root->val;
 			incoming[a]->pop();
 			if (!supernodes.connected(e.u, e.v)) break; // We have found the edge!
  		}
@@ -360,6 +360,7 @@ int main()
  			}
  			// Remove mxedge from cost
  			ans -= mxedge.val();
+ 			
  			int s = supernodes.upto++; // New supernode
  			// Go over the cycle again, merging the incoming edge lists
  			b = supernodes.findrep(e.u);
