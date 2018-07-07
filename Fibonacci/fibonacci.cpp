@@ -179,22 +179,27 @@ struct FibHeap
 		}
 		while (a != temproot);
 	}
-	void merge(FibHeap &a) // Merge Fibonacci Heap a into this heap
+	void merge(FibHeap *a) // Merge Fibonacci Heap a into this heap
 	{
 		// Cut each heap between their maximum and the element to the right of that, then splice together
-		pnode b = a.mx; 
+		sz += a->sz; // update size of heap
+		if (!mx)
+		{
+			mx = a->mx;
+			return;
+		}
+		if (!a->mx) return;
+		pnode b = a->mx; 
 		pnode br = b->right;
 		pnode mxr = mx->right;
 
 		b->right = mxr;
+		
 		mxr->left = b;
 
 		mx->right = br;
 		br->left = mx;
-
 		if (b->val > mx->val) mx = b; // Update max if needed
-
-		sz += a.sz; // update size of heap
 	}
 	void cutfromtree(pnode a) // Removes this node from its parent and inserts it into the heap
 	{

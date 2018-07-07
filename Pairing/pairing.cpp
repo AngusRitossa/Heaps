@@ -48,6 +48,7 @@ struct PairingHeap
 	pnode merge(pnode a, pnode b) // Merges two heaps into one heap
 	{
 		if (!b) return a;
+		if (!a) return b;
 		if (b->val > a->val) swap(a, b); // Make the heap with the largest root the new root
 		b->right = a->child;
 		if (b->right) b->right->left = b;
@@ -55,10 +56,10 @@ struct PairingHeap
 		b->left = a;
 		return a;
 	}
-	void merge(PairingHeap &a) // Merges a heap into this heap
+	void merge(PairingHeap *a) // Merges a heap into this heap
 	{
-		sz += a.sz;
-		root = merge(root, a.root);
+		sz += a->sz;
+		root = merge(root, a->root);
 	}
 	void push(pnode _new) // Inserts a pnode into the heap
 	{
