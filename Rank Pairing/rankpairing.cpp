@@ -85,7 +85,7 @@ struct RPHeap
 	}
 	void push(int val) // Add the value a into the heap
 	{
-		pnode a = rankpairingalloc::_newnode(val);
+		pnode a = rankpairingalloc::newnode(val);
 		sz++;
 		addIntoHeap(root, a);
 	}

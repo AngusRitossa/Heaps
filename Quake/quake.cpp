@@ -1,6 +1,6 @@
 // Quake heap, O(1) push, decrease-key, O(log(n)) pop, merge
 #define MAXN 1000001
-#define MXRANK 50
+#define MXRANK 80
 #define A1 4 // Required ratio of amounts of each rank = A1/A2
 #define A2 5
 typedef struct QuakeValue* pvalue;
@@ -54,12 +54,12 @@ pnode newnode()
 	return _new;
 }
 pnode ofrank[100]; // Used for intermediary storage during pop
-int mxrank; // Also used for intermediary storage during pop
 struct QuakeHeap
 {
 	pnode root;
 	int sz;
 	int am[MXRANK]; // Stores the amount of nodes of each rank
+	int mxrank;
 	QuakeHeap() // Initialise
 	{
 		root = NULL;

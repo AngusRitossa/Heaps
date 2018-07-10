@@ -1,16 +1,9 @@
-// Dijkstra's algorithm implemented with a smooth heap
-#include <cstdio>
-#include <vector>
-#include <utility>
-#include <chrono>
-using namespace std::chrono;
+// Smooth Heap (minimum), forest
 #define MAXN 1000001
-typedef long long ll;
 typedef struct Node* pnode;
 struct Node
 {
-	ll val;
-	int node;
+	int val;
 	pnode left, right, child, par; // Left and right siblings in tree/heap, leftmost child, parent
 	// Need these pointers to support access to: Left & right siblings of a node for removal during decrease-key
 	// + Need parent because leftmost child can no longer store parent because it needs to store rightmost sibling
@@ -26,12 +19,10 @@ struct SmoothHeap
 {
 	int sz;
 	pnode root;
-	pnode mn; // Minimum node in the heap
 	SmoothHeap() // Initialisation 
 	{
 		sz = 0;
 		root = NULL;
-		mn = NULL;
 	}
 	// Auxilary functions
 	int size()
@@ -42,24 +33,24 @@ struct SmoothHeap
 	{
 		return !sz;
 	}
-	ll top()
+	int top()
 	{
-		return mn->val;
+		return root->val;
 	}
-	void insertIntoHeap(pnode a) // Adds a to the left of the heap
+	void insertIntoHeap(pnode a) // Adds a to the left of the root
 	{
 		a->par = NULL;
 		if (!root)
 		{
-			root = mn = a;
+			root = a->left = a->right = a;
 			return;
 		}
 		// Insert to the left of root
-		a->left = NULL;
+		a->left = root->left;
+		a->left->right = a;
 		a->right = root;
 		root->left = a;
-		root = a;
-		if (a->val < mn->val) mn = a; // Update mn if needed
+		if (a->val < root->val) root = a; // Update mn if needed
 	}
 	void link(pnode &a) // Stable links a to a->right
 	{
@@ -112,20 +103,19 @@ struct SmoothHeap
 		sz++;
 		insertIntoHeap(a);
 	}
-	void push(ll val)
+	void push(int val)
 	{
 		pnode a = newnode();
 		a->val = val;
 		sz++;
 		insertIntoHeap(a);
 	}
-	void decreasekey(pnode a, ll val)
+	void decreasekey(pnode a, int val)
 	{	
 		a->val = val;
 		if (!a->par)
 		{
-			assert(mn);
-			if (val < mn->val) mn = a; // Update mn if needed
+			if (val < root->val) root = a; // Update mn if needed
 			return; // A is already a root, doesn't need removal
 		}
 		if (val > a->par->val) return; // A doesn't break heap-order, doesn't need removal
@@ -148,32 +138,34 @@ struct SmoothHeap
 		sz--;
 		if (!sz)
 		{
-			root = mn = NULL;
+			root = NULL;
 			return;
 		}
-		// Remove mn
-		if (mn == root)
+		// Remove root
+		pnode x = root;
+		if (root->left == root)
 		{
-			root = mn->right;
-			if (root) root->left = NULL;
+			root = NULL;
 		}
 		else
 		{
-			if (mn->right) mn->right->left = mn->left;
-			if (mn->left) mn->left->right = mn->right;
+			// Remove old root, make linear
+			root->right->left = NULL;
+			root->left->right = NULL;
+			root = root->right;
 		}
-		// Add children of mn to the heaplist
-		if (mn->child)
+		// Add children of x to the heaplist
+		if (x->child)
 		{
-			pnode a = mn->child;
-			pnode b = mn->child->left; // Rightmost child
+			pnode a = x->child;
+			pnode b = x->child->left; // Rightmost child
 			b->right = root;
 			if (root) root->left = b;
 			a->left = NULL;
 			root = a;
 		}
 		// Do restructuring
-		pnode x = root;
+		x = root;
 		while (x->right)
 		{
 			if (x->val < x->right->val) x = x->right; // x is not a local maximum
@@ -204,59 +196,6 @@ struct SmoothHeap
 			x = x->left;
 			link(x);
 		}
-		root = mn = x;
+		root = x->left = x->right = x;
 	}
 };
-int v, e;
-std::vector<std::pair<int, ll> > adj[MAXN];
-SmoothHeap pq;
-pnode nodes[MAXN];
-int main()
-{
-	// Scan in the input
-	scanf("%d%d", &v, &e);
-	for (int i = 0; i < e; i++)
-	{
-		int a, b;
-		ll c;
-		scanf("%d%d%lld", &a, &b, &c);
-		adj[a].emplace_back(b, c);
-		adj[b].emplace_back(a, c);
-	}
-	// Start the timer
-	milliseconds start = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-
-	// Initialise the distance to each node
-	nodes[0] = newnode();
-	nodes[0]->node = 0;
-	pq.push(nodes[0]);
-	for (int i = 1; i < v; i++)
-	{
-		nodes[i] = newnode();
-		nodes[i]->val = 1e18;
-		nodes[i]->node = i;
-		pq.push(nodes[i]);
-	}
-
-	// Run dijkstra
-	while (!pq.empty())
-	{
-		int a = pq.mn->node;
-		ll d = pq.top();
-		pq.pop();
-		for (auto b : adj[a])
-		{
-			if (d + b.second < nodes[b.first]->val)
-			{
-				pq.decreasekey(nodes[b.first], d + b.second);
-			}
-		}
-	}
-	// Print distance to node n-1;
-	printf("%lld\n", nodes[v-1]->val);
-
-	// End the timer, print the time
-	milliseconds end = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-	ll totaltime = end.count() - start.count();
-	printf("Time % 6lldms\n", totaltime);
-}

@@ -1,7 +1,7 @@
-// Maximum D-ary heap, generalisation of binary heap
+// Minimum D-ary heap, generalisation of binary heap
 // O(log) push, pop, decrease key
-#define D 8
-#define MAXN 1000000
+#define D 16
+#define MAXN 10000000
 struct daryheap
 {
 	int heap[MAXN];
@@ -27,20 +27,13 @@ struct daryheap
 		int c = heap[a];
 		heap[a] = heap[b];
 		heap[b] = c;
-		
-		c = node[a];
-		node[a] = node[b];
-		node[b] = c;
-
-		at[node[a]] = a;
-		at[node[b]] = b;
 	}
 	void bubbleup(int a) // Swaps with parents until its in the correct position
 	{
 		while (a)
 		{
 			int p = (a-1)/D;
-			if (heap[a] > heap[p]) // Should perform the swap
+			if (heap[a] < heap[p]) // Should perform the swap
 			{
 				swap(a, p);
 				a = p;
@@ -57,7 +50,7 @@ struct daryheap
 			for (int i = 1; i <= D; i++)
 			{
 				int c = a*D+i;
-				if (c < sz && heap[c] > mx) // This is the new greatest value
+				if (c < sz && heap[c] < mx) // This is the new greatest value
 				{
 					mx = heap[c];
 					mxchild = c;
@@ -74,7 +67,6 @@ struct daryheap
 	{
 		// Insert as a leaf
 		heap[sz] = val;
-		node[sz] = upto;
 		at[upto++] = sz;
 		// Bubble up
 		bubbleup(sz++);

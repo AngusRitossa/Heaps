@@ -1,4 +1,4 @@
-// Pairing Heap with push, pop, erase, top (max), merge & increase key
+// Pairing Heap with push, pop, erase, top (minimum), merge & decrease key
 typedef struct PairingNode* pnode;
 #define MAXN 1000000
 struct PairingNode
@@ -33,7 +33,7 @@ struct PairingHeap
 	{
 		return !sz;
 	}
-	int top() // Maximum value
+	int top() // Minimum value
 	{
 		return root->val;
 	}
@@ -49,7 +49,7 @@ struct PairingHeap
 	{
 		if (!b) return a;
 		if (!a) return b;
-		if (b->val > a->val) swap(a, b); // Make the heap with the largest root the new root
+		if (b->val < a->val) swap(a, b); // Make the heap with the smallest root the new root
 		b->right = a->child;
 		if (b->right) b->right->left = b;
 		a->child = b;
@@ -69,7 +69,7 @@ struct PairingHeap
 			root = _new;
 			return;
 		}
-		if (_new->val > root->val) // Make _new the new root
+		if (_new->val < root->val) // Make _new the new root
 		{
 			_new->child = root;
 			root->left = _new;
@@ -102,7 +102,7 @@ struct PairingHeap
 		root = recursivemerge(root->child);
 		if (root) root->right = NULL;
 	}
-	void increasekey(pnode a, int val)
+	void decreasekey(pnode a, int val)
 	{
 		a->val = val;
 		if (a == root) return;
