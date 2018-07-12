@@ -1,4 +1,5 @@
 // Generates a test case with the goal of having many decreasekey calls when dijkstra is run
+// Generates a complete graph
 #include <bits/stdc++.h>
 using namespace std;
 typedef long long ll;

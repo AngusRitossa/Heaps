@@ -6,7 +6,7 @@
 #include <chrono>
 using namespace std;
 using namespace chrono;
-#define D 8
+#define D 16
 #define MAXN 1000001
 typedef long long ll;
 struct daryheap

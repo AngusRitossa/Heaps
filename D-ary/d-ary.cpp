@@ -45,20 +45,20 @@ struct daryheap
 	{
 		while (true)
 		{
-			int mx = heap[a];
-			int mxchild = -1;
+			int mn = heap[a];
+			int mnchild = -1;
 			for (int i = 1; i <= D; i++)
 			{
 				int c = a*D+i;
-				if (c < sz && heap[c] < mx) // This is the new greatest value
+				if (c < sz && heap[c] < mn) // This is the new greatest value
 				{
-					mx = heap[c];
-					mxchild = c;
+					mn = heap[c];
+					mnchild = c;
 				}
 			}
-			if (mxchild == -1) break; // We are done
-			swap(a, mxchild);
-			a = mxchild;
+			if (mnchild == -1) break; // We are done
+			swap(a, mnchild);
+			a = mnchild;
 		}
 	}
 
@@ -79,7 +79,7 @@ struct daryheap
 		// Bubble down
 		bubbledown(0);
 	}
-	void increasekey(int a, int val)
+	void decreasekey(int a, int val)
 	{
 		// Update value, bubble up
 		heap[a] = val;

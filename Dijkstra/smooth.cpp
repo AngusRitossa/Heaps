@@ -26,12 +26,10 @@ struct SmoothHeap
 {
 	int sz;
 	pnode root;
-	pnode mn; // Minimum node in the heap
 	SmoothHeap() // Initialisation 
 	{
 		sz = 0;
 		root = NULL;
-		mn = NULL;
 	}
 	// Auxilary functions
 	int size()
@@ -44,22 +42,22 @@ struct SmoothHeap
 	}
 	ll top()
 	{
-		return mn->val;
+		return root->val;
 	}
-	void insertIntoHeap(pnode a) // Adds a to the left of the heap
+	void insertIntoHeap(pnode a) // Adds a to the left of the root
 	{
 		a->par = NULL;
 		if (!root)
 		{
-			root = mn = a;
+			root = a->left = a->right = a;
 			return;
 		}
 		// Insert to the left of root
-		a->left = NULL;
+		a->left = root->left;
+		a->left->right = a;
 		a->right = root;
 		root->left = a;
-		root = a;
-		if (a->val < mn->val) mn = a; // Update mn if needed
+		if (a->val < root->val) root = a; // Update mn if needed
 	}
 	void link(pnode &a) // Stable links a to a->right
 	{
@@ -124,8 +122,7 @@ struct SmoothHeap
 		a->val = val;
 		if (!a->par)
 		{
-			assert(mn);
-			if (val < mn->val) mn = a; // Update mn if needed
+			if (val < root->val) root = a; // Update mn if needed
 			return; // A is already a root, doesn't need removal
 		}
 		if (val > a->par->val) return; // A doesn't break heap-order, doesn't need removal
@@ -148,32 +145,34 @@ struct SmoothHeap
 		sz--;
 		if (!sz)
 		{
-			root = mn = NULL;
+			root = NULL;
 			return;
 		}
-		// Remove mn
-		if (mn == root)
+		// Remove root
+		pnode x = root;
+		if (root->left == root)
 		{
-			root = mn->right;
-			if (root) root->left = NULL;
+			root = NULL;
 		}
 		else
 		{
-			if (mn->right) mn->right->left = mn->left;
-			if (mn->left) mn->left->right = mn->right;
+			// Remove old root, make linear
+			root->right->left = NULL;
+			root->left->right = NULL;
+			root = root->right;
 		}
-		// Add children of mn to the heaplist
-		if (mn->child)
+		// Add children of x to the heaplist
+		if (x->child)
 		{
-			pnode a = mn->child;
-			pnode b = mn->child->left; // Rightmost child
+			pnode a = x->child;
+			pnode b = x->child->left; // Rightmost child
 			b->right = root;
 			if (root) root->left = b;
 			a->left = NULL;
 			root = a;
 		}
 		// Do restructuring
-		pnode x = root;
+		x = root;
 		while (x->right)
 		{
 			if (x->val < x->right->val) x = x->right; // x is not a local maximum
@@ -204,7 +203,7 @@ struct SmoothHeap
 			x = x->left;
 			link(x);
 		}
-		root = mn = x;
+		root = x->left = x->right = x;
 	}
 };
 int v, e;
@@ -241,7 +240,7 @@ int main()
 	// Run dijkstra
 	while (!pq.empty())
 	{
-		int a = pq.mn->node;
+		int a = pq.root->node;
 		ll d = pq.top();
 		pq.pop();
 		for (auto b : adj[a])

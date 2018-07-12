@@ -481,10 +481,13 @@ struct StrictFibonacciHeap // The actual heap
 		x->rank = x->rank->left;
 
 		// Insert into fix list
-		pfixlist a = newFixListNode();
-		a->node = x;
-		a->rank = x->rank;
-		if (x->loss) insertIntoFixList(a, x->rank->loss, x->rank->losscount, four, three);
+		if (x->loss) 
+		{
+			pfixlist a = newFixListNode();
+			a->node = x;
+			a->rank = x->rank;
+			insertIntoFixList(a, x->rank->loss, x->rank->losscount, four, three);
+		}
 	}
 	void oneNodeLossReduction(pnode x)
 	{

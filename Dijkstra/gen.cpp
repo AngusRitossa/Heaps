@@ -60,7 +60,9 @@ int main()
 		ll c = (rand()%MXCOST) + 1;
 		edges.push_back({ {a, b}, c } );
 	}
-	random_shuffle(edges.begin(), edges.end());
+	random_device rd;
+    mt19937 g(rd());
+	shuffle(edges.begin(), edges.end(), g);
 	for (auto a : edges)
 	{
 		printf("%d %d %lld\n", a.first.first, a.first.second, a.second);

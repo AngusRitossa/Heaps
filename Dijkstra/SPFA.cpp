@@ -1,4 +1,5 @@
-// Dijkstra's algorithm implemented with a STL heap: O((v + e) log e)
+// Shortest path faster algorithm (SPFA). Modification of Bellman-Ford, and is still worst case O(VE)
+// Is said to perform well on randomly generated graphs, based on empirical evidence alone.
 #include <cstdio>
 #include <vector>
 #include <utility>
@@ -10,7 +11,8 @@ using namespace chrono;
 typedef long long ll;
 int v, e;
 vector<pair<int, ll> > adj[MAXN];
-priority_queue<pair<ll, int>, vector<pair<ll, int> >, greater<pair<ll, int> > > pq;
+deque<int> pq;
+bool onq[MAXN]; // Stores whether a node is on the queue at the moment or not
 ll dis[MAXN];
 int main()
 {
@@ -29,25 +31,30 @@ int main()
 
 	// Initialise the distance to each node
 	dis[0] = 0;
-	pq.emplace(0, 0);
+	pq.push_front(0);
 	for (int i = 1; i < v; i++)
 	{
 		dis[i] = 1e18;
 	}
 
-	// Run dijkstra
+	// Run SPFA
 	while (!pq.empty())
 	{
-		int a = pq.top().second;
-		ll d = pq.top().first;
-		pq.pop();
-		if (dis[a] != d) continue;
+		int a = pq.front();
+		onq[a] = false;
+		ll d = dis[a];
+		pq.pop_front();
 		for (auto b : adj[a])
 		{
 			if (d + b.second < dis[b.first])
 			{
 				dis[b.first] = d + b.second;
-				pq.emplace(dis[b.first], b.first);
+				if (!onq[b.first]) 
+				{
+					if (!pq.empty() && dis[b.first] < dis[pq.front()]) pq.push_front(b.first);
+					else pq.push_back(b.first);
+					onq[b.first] = true;
+				}
 			}
 		}
 	}
