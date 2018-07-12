@@ -272,7 +272,6 @@ struct StrictFibonacciHeap // The actual heap
 		// Count is the number of nodes of that rank in the fix list
 		// One and two are pointers to the first and second fix lists
 		// Note if this is a insertion due to loss, active should be the loss pointer and one and two should be pointers to the forth and third fix lists
-			
 		a->node->fix = a;
 		if (!count)
 		{

@@ -1,4 +1,4 @@
-// Edmonds minimal branching algorithm with quake heap, O(e log v)
+// Edmonds minimal branching algorithm with rank-pairing heap, O(e log v)
 // Calculates the total length of the minimum spanning arborescence rooted at 0. Can be modified to return the edges used. 
 #include <cstdio>
 #include <algorithm>
@@ -9,7 +9,7 @@
 using namespace std;
 using namespace std::chrono;
 #define MAXN 1000000
-#define MAXEDGES 5000000
+#define MAXEDGES 10000000
 typedef long long ll;
 struct UFVal // Disjoint set union find data structure, used for supernodes
 {
@@ -90,73 +90,36 @@ struct Edge // Stores a directed edge from u to v
 	}
 };
 
-// Quake Heap
-#define MXRANK 60
-#define A1 4 // Required ratio of amounts of each rank = A1/A2
-#define A2 5
-typedef struct QuakeValue* pvalue;
-typedef struct QuakeNode* pnode;
-struct QuakeValue
+// Pairing Heap
+typedef struct Node* pnode;
+struct Node
 {
-	pnode inheap; // Highest occurrence of it in the heap
-	Edge val; // Value
+	Edge val; 
+	int rank; // Value of the node
+	pnode par, left, right; // Structure is maintained as a binary heap maintaining partial heap order. In particular, the left children satifsy it.
+	bool isRoot; // Stores if the node is a root
+	// Note: Roots are stored in a doubly linked circular linked list. 
+	// In this case, left and right refer to the left and right siblings in this list
+	// The root will have one left child, which will be stored in the par pointer. 
 };
-struct QuakeNode
+pnode nodesOfRank[100]; // Used for intermediate storage during pop functions
+
+namespace rankpairingalloc // For allocating memory
 {
-	// A tournament node in the heap
-	pnode left, right, par; // Left & right children, parent within one tree
-	pnode l, r; // Left and right trees, if this node is a root
-	pvalue val; // Value stored in this tree, i.e. lowest out of its two children
-	int rank;
-};
-// Used for allocating memory for quakevalue
-int allocupto;
-QuakeValue allocarray[MAXEDGES];
-pvalue newvaluenode(Edge val)
-{
-	pvalue _new = allocarray + allocupto++;
-	_new->val = val;
-	return _new;
-}
-// Used for allocating memory for quakenodes. Faster than dynamic allocation
-// Since O(nlogn) nodes will be used over the life, but only O(n) at once, nodes will be reused. This is faster the reallocating
-int allocupto2;
-QuakeNode allocarray2[5*MAXEDGES];
-pnode reusable; // Singly linked list of reusable nodes
-void deletenode(pnode a)
-{
-	a->right = reusable;
-	reusable = a;
-}
-pnode newnode()
-{
-	pnode _new;
-	if (!reusable)
+	Node heapalloc[MAXEDGES];
+	int upto;
+	pnode newnode(Edge val)
 	{
-		_new = allocarray2 + allocupto2++;
+		pnode _new = heapalloc + upto++;
+		// pnode _new = new Node();
+		_new->val = val;
+		return _new;
 	}
-	else 
-	{
-		_new = reusable;
-		reusable = reusable->right;
-		_new->left = _new->right = NULL;
-	}
-	_new->rank = 0;
-	return _new;
 }
-pnode ofrank[100]; // Used for intermediary storage during pop
-struct QuakeHeap
+struct RPHeap
 {
-	pnode root;
-	int sz;
-	int mxrank; // Maximum rank in the heap
-	int am[MXRANK]; // Stores the amount of nodes of each rank
-	QuakeHeap() // Initialise
-	{
-		root = NULL;
-		sz = 0;
-		for (int i = 0; i < MXRANK; i++) am[i] = 0;
-	}
+	int sz = 0;
+	pnode root = NULL;
 	// Auxilary functions
 	int size()
 	{
@@ -168,191 +131,138 @@ struct QuakeHeap
 	}
 	int top()
 	{
-		return root->val->val.val();
+		return root->val.val();
 	}
-	void insertIntoHeap(pnode a, pnode &root) // Inserts a into the heap rooted at root
+	void swap(pnode &a, pnode &b) // Swaps pnodes
 	{
-		a->par = NULL;
-		if (!root) // Only node in the heap
+		pnode c = a;
+		a = b;
+		b = c;
+	}
+	void addIntoHeap(pnode &root, pnode a) // Inserts a into the heap rooted at root
+	{
+		a->isRoot = 1;
+		if (!root) // This node is the only node in the heap
 		{
-			root = a->l = a->r = a;
+			a->left = a->right = root = a;
 			return;
 		}
 		// Insert to the right of the root
-		pnode b = root->r;
-		a->r = b;
-		b->l = a;
-		root->r = a;
-		a->l = root;
+		a->left = root;
+		a->right = root->right;
+		a->right->left = a;
+		root->right = a;	
 		// Update root if needed
-		if (a->val->val.val() < root->val->val.val()) root = a;
+		if (a->val.val() < root->val.val()) root = a;
 	}
-	pnode mergetrees(pnode a, pnode b)
+	pnode mergetrees(pnode x, pnode y) // Merges trees with equal rank into one tree
 	{
-		// Create a new node, c which will be the parent of a and b
-		pnode c = newnode();
-		c->rank = a->rank+1;
-		am[c->rank]++; // One more node of this rank
-		c->left = a;
-		c->right = b;
-		a->par = b->par = c;
-		// Set the value at c to be the minimum of the two children
-		if (a->val->val.val() < b->val->val.val()) c->val = a->val;
-		else c->val = b->val;
-		c->val->inheap = c; // Update the maximum node in the tree for the value at c
-		return c;
-	}
-	void addNode(pnode a) // Used during pop to add a node to the ofrank array and do necessary merges
-	{
-		if (ofrank[a->rank])
-		{
-			// Merge them
-			a = mergetrees(a, ofrank[a->rank]);
-			ofrank[a->rank-1] = NULL;
-			// Try again
-			addNode(a);
-		}
-		else
-		{
-			if (a->rank > mxrank) mxrank = a->rank;
-			ofrank[a->rank] = a;
-		}
-	}
-	void quake(pnode a, int hei) // Quake operation, remove all nodes of rank > hei
-	{
-		if (a->rank <= hei)
-		{
-			// We should keep this one, insert it into the heap
-			// Also, this is now the heighest occurrence of the value stored here
-			a->val->inheap = a;
-			insertIntoHeap(a, root);
-		}
-		else
-		{
-			// Recurse into both children
-			if (a->left) quake(a->left, hei);
-			if (a->right) quake(a->right, hei);
-			am[a->rank]--;
-			deletenode(a);
-		}
+		if (x->val.val() > y->val.val()) swap(x, y); // Guarantee that x->val <= y->val
+		// Make y the left child of x, stored in the par pointer
+		y->left = y->par;
+		y->right = x->par;
+		if (y->right) y->right->par = y;
+		x->par = y;
+		y->par = x;
+		x->rank++; // Increase rank of x
+		y->isRoot = 0; // Y is no longer a root
+		return x;
 	}
 
 	// Main functions
-	void push(pvalue val)
+	void push(pnode a) // Add the node a into the heap
 	{
 		sz++;
-		pnode a = newnode();
-		a->val = val;
-		val->inheap = a;
-		am[0]++; // Another node of rank 0
-		insertIntoHeap(a, root);
+		addIntoHeap(root, a);
 	}
-	void push(Edge val)
+	void push(Edge val) // Add the value a into the heap
 	{
-		push(newvaluenode(val));
+		pnode a = rankpairingalloc::newnode(val);
+		sz++;
+		addIntoHeap(root, a);
 	}
-	void merge(pnode a)
+	void merge(RPHeap* a)
 	{
-		// Merge the linked lists
-		if (!a) return;
-		if (!root) 
+		if (!a->root) return;
+		sz+=a->sz;
+		if (!root)
 		{
-			root = a;
+			root = a->root;
 			return;
 		}
-		pnode b = a->r;
-		pnode x = root->r;
-		root->r = b;
-		b->l = root;
-		a->r = x;
-		x->l = a;
-		if (a->val->val.val() < root->val->val.val()) root = a; // Update root if needed
+		// Add the circular linked list a next to the root
+		pnode b = root->right;
+		pnode c = a->root;
+		pnode d = c->right;
+
+		root->right = d;
+		d->left = root;
+
+		b->left = c;
+		c->right = b;
+
+		// Update root if needed
+		if (c->val.val() < root->val.val()) root = c;
 	}
-	void merge(QuakeHeap *a)
+	int rank(pnode a) // Returns the rank of a, or -1 if a doesn't exist
 	{
-		sz += a->sz;
-		merge(a->root);
-		// Then, merge the rank lists
-		for (int i = 0; i <= a->mxrank; i++) am[i] += a->am[i];
-		if (a->mxrank > mxrank) mxrank = a->mxrank;
+		if (a) return a->rank;
+		else return -1;
 	}
-	void pop()
-	{	
+	void pop() // Removes root from the heap
+	{
 		sz--;
-		if (!sz)
+		pnode newroot = NULL;
+		int mxrank = 0; // Maximum rank seen
+		pnode c = root->par;
+		while (c) // Insert the chain of right children into new heap
 		{
-			root = NULL;
-			return;
-		}
-		mxrank = 0;
-		// Add all non-root trees to the new heap
-		pnode a = root->r;
-		while (a != root)
-		{
-			addNode(a);
-			a = a->r;
-		}
-		// Remove the path from the root to the maximum node
-		a = root;
-		while (true)
-		{
-			pnode b = a;
-			am[a->rank]--;
-			if (a->left && a->right)
+			pnode d = c->right; // Next node to be processed
+			c->rank = rank(c->left)+1;
+			c->par = c->left;
+			if (nodesOfRank[c->rank]) // Do merge, insert into heap
 			{
-				// Insert the other child into the new heap, 'recurse' into the child with the same value
-				if (a->left->val == a->val)
-				{
-					addNode(a->right);
-					a = a->left;
-				}
-				else
-				{
-					addNode(a->left);
-					a = a->right;
-				}
+				pnode a = nodesOfRank[c->rank];
+				nodesOfRank[c->rank] = NULL;
+				addIntoHeap(newroot, mergetrees(a, c));
 			}
-			else if (a->left) a = a->left;
-			else if (a->right) a = a->right;
-			else
+			else // Store for a possible future merge
 			{
-				deletenode(a);
-				break;
+				nodesOfRank[c->rank] = c;
+				if (c->rank > mxrank) mxrank = c->rank;
 			}
-			deletenode(b);
+			c = d;
 		}
-		// Construct new heap
-		root = NULL;
+		c = root->right; // Now process all the other roots
+		while (c != root) 
+		{
+			pnode d = c->right; // Next node to be processed
+			if (nodesOfRank[c->rank]) // Do merge, insert into heap
+			{
+				pnode a = nodesOfRank[c->rank];
+				nodesOfRank[c->rank] = NULL;
+				addIntoHeap(newroot, mergetrees(a, c));
+			}
+			else // Store for a possible future merge
+			{
+				nodesOfRank[c->rank] = c;
+				if (c->rank > mxrank) mxrank = c->rank;
+			}
+			c = d;
+		}
+		// Insert all leftover nodes into the new heap
 		for (int i = 0; i <= mxrank; i++)
 		{
-			if (ofrank[i])
+			if (nodesOfRank[i])
 			{
-				insertIntoHeap(ofrank[i], root);
-				ofrank[i] = NULL;
+				addIntoHeap(newroot, nodesOfRank[i]);
+				nodesOfRank[i] = NULL;
 			}
 		}
-		// Check if any of the ranks fail the amount condition
-		for (int i = 0; i < mxrank; i++)
-		{
-			if ((am[i]*A1)/A2 < am[i+1]) 
-			{
-				// Remove all nodes with rank > i
-				pnode oldroot = root;
-				root = NULL;
-				a = oldroot;
-				do
-				{
-					pnode next = a->r;
-					quake(a, i);
-					a = next;
-				}
-				while (a != oldroot);
-				break;
-			}
-		}
+		root = newroot;
 	}
 };
-QuakeHeap* incoming[2*MAXN]; // Stores incoming edges in a heap
+RPHeap* incoming[2*MAXN]; // Stores incoming edges in a pairing heap
 int v, e; // Numbers of vertices and edges
 ll ans; // Stores the weight of the minimum spanning tree
 queue<int> roots; // Stores all the roots to be processed
@@ -364,7 +274,7 @@ int main()
 	// Declare memory
 	for (int i = 0; i < 2*MAXN; i++)
 	{
-		incoming[i] = new QuakeHeap();
+		incoming[i] = new RPHeap();
 	}
 	for (int i = 0; i < e; i++)
 	{
@@ -396,7 +306,7 @@ int main()
 		while (true)
 		{
 			if (incoming[a]->empty()) assert(false); // If this is the case, branching is not possible
-			e = incoming[a]->root->val->val;
+			e = incoming[a]->root->val;
 			incoming[a]->pop();
 			if (!supernodes.connected(e.u, e.v)) break; // We have found the edge!
  		}

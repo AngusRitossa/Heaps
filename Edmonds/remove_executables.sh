@@ -6,6 +6,9 @@ rm pairing
 rm quake
 rm strictfibonacci
 rm violation
+rm smooth
+rm smooth-one-tree
+rm rankpairing
 rm gen
 rm in.txt
 rm in

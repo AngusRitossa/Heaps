@@ -89,13 +89,18 @@ struct RPHeap
 		sz++;
 		addIntoHeap(root, a);
 	}
-	void merge(RPHeap &a)
+	void merge(RPHeap* a)
 	{
-		if (!a.root) return;
-		sz+=a.sz;
+		if (!a->root) return;
+		sz+=a->sz;
+		if (!root)
+		{
+			root = a->root;
+			return;
+		}
 		// Add the circular linked list a next to the root
 		pnode b = root->right;
-		pnode c = a.root;
+		pnode c = a->root;
 		pnode d = c->right;
 
 		root->right = d;

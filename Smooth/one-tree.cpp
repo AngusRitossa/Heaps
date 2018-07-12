@@ -204,4 +204,16 @@ struct SmoothHeap
 		root = x;
 		root->par = NULL;
 	}
+	void merge(SmoothHeap* a)
+	{
+		if (!a->sz) return;
+		sz += a->sz;
+		if (!root) // Just set our root to theirs
+		{
+			root = a->root;
+			return;
+		}
+		// Link roots
+		insertIntoHeap(a->root);
+	}
 };

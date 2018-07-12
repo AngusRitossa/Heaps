@@ -198,4 +198,23 @@ struct SmoothHeap
 		}
 		root = x->left = x->right = x;
 	}
+	void merge(SmoothHeap* a)
+	{
+		if (!a->sz) return;
+		sz += a->sz;
+		if (!root) // Just set our root to theirs
+		{
+			root = a->root;
+			return;
+		}
+		// Merge root lists
+		pnode rr = root->right;
+		pnode aroot = a->root;
+		pnode ar = aroot->right;
+		root->right = ar;
+		ar->left = root;
+		aroot->right = rr;
+		rr->left = aroot;
+		if (aroot->val < root->val) root = aroot; // Update root if needed
+	}
 };
