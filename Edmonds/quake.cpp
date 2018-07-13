@@ -9,7 +9,7 @@
 using namespace std;
 using namespace std::chrono;
 #define MAXN 1000000
-#define MAXEDGES 5000000
+#define MAXEDGES 6000000
 typedef long long ll;
 struct UFVal // Disjoint set union find data structure, used for supernodes
 {
@@ -357,6 +357,7 @@ int v, e; // Numbers of vertices and edges
 ll ans; // Stores the weight of the minimum spanning tree
 queue<int> roots; // Stores all the roots to be processed
 Edge par[2*MAXN]; // Stores the parent edge of a node, used to find cycles
+Edge edges[MAXEDGES];
 int main()
 {
 	// Scan in input
@@ -375,11 +376,16 @@ int main()
 		e.u = a;
 		e.v = b;
 		e.weight = c;
-		incoming[b]->push(e);
+		edges[i] = e;
 	}
+
 	// Start the timer
 	milliseconds start = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 
+	for (int i = 0; i < e; i++) // Push onto heaps
+	{
+		incoming[edges[i].v]->push(edges[i]);
+	}
 	// Push all nodes onto the queue to be processed, except the root
 	for (int i = 1; i < v; i++)
 	{
