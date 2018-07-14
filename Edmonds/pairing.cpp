@@ -233,6 +233,10 @@ int main()
 	{
 		roots.push(i);
 	}
+	// Print time taken to push
+	milliseconds end = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+	ll totaltime = end.count() - start.count();
+	printf("Time taken to push % 6lldms\n", totaltime);
 	// Run the algorithm
 	while (!roots.empty())
 	{
@@ -286,7 +290,7 @@ int main()
 	printf("%lld\n", ans);
 
 	// End the timer, print the time
-	milliseconds end = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-	ll totaltime = end.count() - start.count();
+	end = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+	totaltime = end.count() - start.count();
 	printf("Time % 6lldms\n", totaltime);
 }

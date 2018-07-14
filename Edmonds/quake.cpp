@@ -386,6 +386,10 @@ int main()
 	{
 		incoming[edges[i].v]->push(edges[i]);
 	}
+	// Print time taken to push
+	milliseconds end = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+	ll totaltime = end.count() - start.count();
+	printf("Time taken to push % 6lldms\n", totaltime);
 	// Push all nodes onto the queue to be processed, except the root
 	for (int i = 1; i < v; i++)
 	{
@@ -444,7 +448,7 @@ int main()
 	printf("%lld\n", ans);
 
 	// End the timer, print the time
-	milliseconds end = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-	ll totaltime = end.count() - start.count();
+	end = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+	totaltime = end.count() - start.count();
 	printf("Time % 6lldms\n", totaltime);
 }
