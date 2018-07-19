@@ -204,6 +204,7 @@ struct SmoothHeap
 			link(x);
 		}
 		root = x->left = x->right = x;
+		x->par = NULL;
 	}
 };
 int v, e;

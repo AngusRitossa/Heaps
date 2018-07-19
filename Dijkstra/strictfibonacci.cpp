@@ -909,7 +909,7 @@ int main()
 	milliseconds start = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 
 	// Initialise the distance to each node
-	for (int i = 0; i < v; i++) nodes[i] = new Value(); // Allocate memory
+	for (int i = 0; i < v; i++) nodes[i] = newValueNode(); // Allocate memory
 	nodes[0]->val = { 0, 0};
 	pq.push(pq.newNode(nodes[0]));
 	for (int i = 1; i < v; i++) // Push into pq
