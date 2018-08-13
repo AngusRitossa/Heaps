@@ -81,6 +81,7 @@ struct FibHeap
 	}
 	void addintoheap(pnode _new) // Inserts the node into the heap linked list
 	{
+		_new->par = NULL;
 		_new->right = mn->right;
 		_new->left = mn;
 		mn->right = _new;
@@ -129,6 +130,7 @@ struct FibHeap
 			mn = temproot = mn->child;
 			pnode child = mn->right;
 			mn->left = mn->right = mn;
+			mn->par = NULL;
 			while (child != NULL)
 			{
 				pnode nextchild = child->right;

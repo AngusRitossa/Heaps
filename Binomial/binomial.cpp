@@ -201,8 +201,8 @@ struct BinomialHeap
 	}
 	void erase(pnode a) // Remove a node from the heap
 	{
-		// Update the value to infinity (in this case, (2^31)-1)
-		decreasekey(a, (1 << 31)-1);
+		// Update the value to -infinity
+		decreasekey(a, -(1 << 30));
 		// Since a should now be the greatest element, pop
 		pop();
 	}

@@ -78,6 +78,7 @@ struct FibHeap
 		_new->left = mn;
 		mn->right = _new;
 		_new->right->left = _new;
+		_new->par = NULL;
 		// If the new value is smaller, set as root
 		if (_new->val < mn->val)
 		{
@@ -122,6 +123,7 @@ struct FibHeap
 			mn = temproot = mn->child;
 			pnode child = mn->right;
 			mn->left = mn->right = mn;
+			mn->par = NULL;
 			while (child != NULL)
 			{
 				pnode nextchild = child->right;

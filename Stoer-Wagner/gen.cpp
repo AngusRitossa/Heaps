@@ -4,7 +4,7 @@
 #include <bits/stdc++.h>
 using namespace std;
 typedef long long ll;
-#define MXCOST (ll)(1e12) // Maximum weight of an edge
+#define MXCOST (ll)(1e5) // Maximum weight of an edge
 vector<pair<pair<int, int>, ll> > edges;
 struct UF // Union find data structure
 {
@@ -60,7 +60,9 @@ int main()
 		ll c = (rand()%MXCOST) + 1;
 		edges.push_back({ {a, b}, c } );
 	}
-	random_shuffle(edges.begin(), edges.end());
+	random_device rd;
+    mt19937 g(rd());
+	shuffle(edges.begin(), edges.end(), g);
 	for (auto a : edges)
 	{
 		printf("%d %d %lld\n", a.first.first, a.first.second, a.second);

@@ -1,0 +1,23 @@
+# deletes all the executable files
+rm binary
+rm binomial
+rm fibonacci
+rm naive
+rm pairing
+rm rankpairing
+rm hollow
+rm smooth
+rm smooth-one-tree
+rm quake
+rm violation
+rm strictfibonacci
+rm d-ary
+rm SPFA
+rm STL
+rm gen
+rm in.txt
+rm in
+rm out.txt
+rm out
+rm worstcasegen
+rm genplanar

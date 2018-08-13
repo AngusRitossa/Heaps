@@ -1,10 +1,11 @@
-// Dijkstra's algorithm implemented with a fibonacci heap: O(e + vlogv)
+// Stoer-Wagner's algorithm implemented with a fibonacci heap: O(ve + v^2 log v)
 #include <cstdio>
 #include <vector>
 #include <utility>
 #include <chrono>
 using namespace std::chrono;
-#define MAXN 1000001
+using namespace std;
+#define MAXN 5000000
 typedef long long ll;
 typedef struct FibNode* pnode;
 struct FibNode
@@ -33,9 +34,9 @@ pnode _newnode(ll val)
 }
 struct FibHeap
 {
-	pnode mn; // Pointer to the maximum value in the heap
-	int sz; // Number of elements in the heap
-	pnode temproot; // Used in the pop function
+	pnode mn = NULL; // Pointer to the maximum value in the heap
+	int sz = 0; // Number of elements in the heap
+	pnode temproot = NULL; // Used in the pop function
 	// Auxiliary functions
 	int size()
 	{
@@ -81,6 +82,7 @@ struct FibHeap
 	}
 	void addintoheap(pnode _new) // Inserts the node into the heap linked list
 	{
+		_new->par = NULL;
 		_new->right = mn->right;
 		_new->left = mn;
 		mn->right = _new;
@@ -127,6 +129,7 @@ struct FibHeap
 			// The heap will just consist of the children of mn
 			// Set the first child as the root, insert the rest
 			mn = temproot = mn->child;
+			mn->par = NULL;
 			pnode child = mn->right;
 			mn->left = mn->right = mn;
 			while (child != NULL)
@@ -144,7 +147,6 @@ struct FibHeap
 			temproot = mn->left;
 			temproot->right = mn->right;
 			temproot->right->left = temproot;
-
 			// Add the children of mn to the heap
 			pnode child = mn->child;
 			while (child != NULL)
@@ -260,55 +262,114 @@ struct FibHeap
 		pop();
 	}
 };
-int v, e;
-std::vector<std::pair<int, ll> > adj[MAXN];
-FibHeap pq;
+// Stoer-Wagner code
+struct UF // Union-find data structure (path compression) - used for merging nodes
+{	
+	int rep[MAXN];
+	UF()
+	{
+		for (int i = 0; i < MAXN; i++) rep[i] = i;
+	}
+	int findrep(int a)
+	{
+		if (rep[a] == a) return a;
+		return rep[a] = findrep(rep[a]);
+	}
+	void merge(int a, int b)
+	{
+		rep[findrep(a)] = findrep(b);
+	}
+};
+UF uf;
+typedef struct Edge* pedge;
+struct Edge // Adjacency list is stored as a linked list for O(1) merging
+{
+	pedge adj;
+	int v;
+	ll weight;
+};
+pedge adj[MAXN], lastadj[MAXN]; // Outgoing edges
+int v, e, inlegal[MAXN];
+ll ans = 1e18;
 pnode nodes[MAXN];
-bool done[MAXN];
+FibHeap pq;
 int main()
 {
-	// Scan in the input
+	// Scan input
 	scanf("%d%d", &v, &e);
 	for (int i = 0; i < e; i++)
 	{
 		int a, b;
 		ll c;
 		scanf("%d%d%lld", &a, &b, &c);
-		adj[a].emplace_back(b, c);
-		adj[b].emplace_back(a, c);
+		pedge e = new Edge();
+		e->v = b;
+		e->weight = c;
+		e->adj = adj[a];
+		adj[a] = e;
+		if (!lastadj[a]) lastadj[a] = e;
+		e = new Edge();
+		e->v = a;
+		e->weight = c;
+		e->adj = adj[b];
+		adj[b] = e;
+		if (!lastadj[b]) lastadj[b] = e;
 	}
+
 	// Start the timer
 	milliseconds start = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-
-	// Initialise the distance to each node
-	nodes[0] = fibheapalloc::_newnode(0);
-	nodes[0]->node = 0;
-	pq.push(nodes[0]);
-	for (int i = 1; i < v; i++)
+	for (int i = 0; i < v; i++) nodes[i] = fibheapalloc::_newnode(0), nodes[i]->node = i;
+	// Run the algorithm
+	for (int c = 1; c <= v-1; c++) // Run this v-1 times
 	{
-		nodes[i] = fibheapalloc::_newnode(1e18);
-		nodes[i]->node = i;
-		pq.push(nodes[i]);
-	}
-	ll ans = 0;
-
-	// Run prim's algorithm
-	while (!pq.empty())
-	{
-		int a = pq.mn->node;
-		done[a] = 1;
-		ll d = pq.top();
-		ans += d;
-		pq.pop();
-		for (auto b : adj[a])
+		// Construct "legal ordering"
+		// Push all nodes onto the pq
+		for (int i = 0; i < v; i++)
 		{
-			if (!done[b.first] && b.second < nodes[b.first]->val)
+			if (uf.findrep(i) == i) // If it hasn't been contracted
 			{
-				pq.decreasekey(nodes[b.first], b.second);
+				nodes[i]->val = 0;
+				nodes[i]->degree = nodes[i]->onechildcut = 0;
+				nodes[i]->par = nodes[i]->child = nodes[i]->left = nodes[i]->right = NULL;
+				pq.push(nodes[i]);
 			}
 		}
+		int last;
+		while (pq.size() > 1)
+		{
+			int a = pq.mn->node; // A is the next node in the legal ordering
+			last = a;
+			inlegal[a] = c;
+			pq.pop();
+			for (pedge e = adj[a]; e; e = e->adj) 
+			{
+				// For each outgoing edge, do a decrease-key
+				int b = uf.findrep(e->v);
+				if (inlegal[b] != c)
+				{
+					pq.decreasekey(nodes[b], nodes[b]->val - e->weight);
+				}
+			}
+		}
+		ans = min(ans, -pq.top()); // Update answer if needed
+		int a = pq.mn->node;
+		pq.pop();
+		// Merge a and last
+		uf.merge(a, last);
+		if (adj[a]) 
+		{
+			if (adj[last])
+			{
+				lastadj[a]->adj = adj[last];
+				adj[last] = adj[a];
+			}
+			else
+			{
+				adj[last] = adj[a];
+				lastadj[last] = lastadj[a];
+			}
+		}	
 	}
-	// Print sum of edge weights
 	printf("%lld\n", ans);
 
 	// End the timer, print the time
