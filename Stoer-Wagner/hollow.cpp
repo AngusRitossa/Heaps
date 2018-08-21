@@ -4,7 +4,7 @@
 #include <utility>
 #include <chrono>
 #define MAXn 5000000 // Maximum number of items (push)
-#define MAXN 15000000 // Maximum number of nodes (push + decrease-key)
+#define MAXN 20000000 // Maximum number of nodes (push + decrease-key)
 using namespace std::chrono;
 using namespace std;
 typedef struct Item* pitem;
@@ -37,6 +37,8 @@ pnode newnode(pitem item, ll val)
 	_new->item = item;
 	_new->val = val;
 	item->inheap = _new;
+	_new->rank = 0;
+	_new->child = _new->sibling = _new->secondparent = NULL;
 	return _new;
 }
 // Used for intermediary storage during pop
@@ -284,6 +286,7 @@ int main()
 	{
 		// Construct "legal ordering"
 		// Push all nodes onto the pq
+		if (nodeallocupto > 19000000) nodeallocupto = 0;
 		for (int i = 0; i < v; i++)
 		{
 			if (uf.findrep(i) == i) // If it hasn't been contracted

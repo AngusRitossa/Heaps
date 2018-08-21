@@ -6,7 +6,7 @@
 #include <chrono>
 using namespace std;
 using namespace chrono;
-#define D 4
+#define D 16
 #define MAXN 5000000
 typedef long long ll;
 struct daryheap
@@ -152,7 +152,6 @@ int main()
 		adj[b] = e;
 		if (!lastadj[b]) lastadj[b] = e;
 	}
-
 	// Start the timer
 	milliseconds start = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 
