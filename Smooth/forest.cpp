@@ -1,29 +1,22 @@
 // Smooth Heap (minimum), forest
-#define MAXN 1000001
-typedef struct Node* pnode;
-struct Node
+template<class T> struct SmoothNode
 {
-	int val;
+	typedef struct SmoothNode<T>* pnode;
+	T val;
 	pnode left, right, child, par; // Left and right siblings in tree/heap, leftmost child, parent
 	// Need these pointers to support access to: Left & right siblings of a node for removal during decrease-key
 	// + Need parent because leftmost child can no longer store parent because it needs to store rightmost sibling
 };
 // Memory allocation
-Node allocarray[MAXN];
-int allocupto;
-pnode newnode()
+template<class T> SmoothNode<T>* _newsmoothnode()
 {
-	return allocarray + allocupto++;
+	return new SmoothNode<T>();
 } 
-struct SmoothHeap
+template<class T> struct smooth
 {
-	int sz;
-	pnode root;
-	SmoothHeap() // Initialisation 
-	{
-		sz = 0;
-		root = NULL;
-	}
+	typedef struct SmoothNode<T>* pnode;
+	int sz = 0;
+	pnode root = nullptr;
 	// Auxilary functions
 	int size()
 	{
@@ -33,13 +26,13 @@ struct SmoothHeap
 	{
 		return !sz;
 	}
-	int top()
+	T top()
 	{
 		return root->val;
 	}
 	void insertIntoHeap(pnode a) // Adds a to the left of the root
 	{
-		a->par = NULL;
+		a->par = nullptr;
 		if (!root)
 		{
 			root = a->left = a->right = a;
@@ -103,14 +96,15 @@ struct SmoothHeap
 		sz++;
 		insertIntoHeap(a);
 	}
-	void push(int val)
+	pnode push(T val)
 	{
-		pnode a = newnode();
+		pnode a = _newsmoothnode<T>();
 		a->val = val;
 		sz++;
 		insertIntoHeap(a);
+		return a;
 	}
-	void decreasekey(pnode a, int val)
+	void decreasekey(pnode a, T val)
 	{	
 		a->val = val;
 		if (!a->par)
@@ -122,7 +116,7 @@ struct SmoothHeap
 		// Remove a from its parent
 		if (a->left == a) // Only child
 		{
-			a->par->child = NULL;
+			a->par->child = nullptr;
 		}
 		else
 		{
@@ -138,20 +132,20 @@ struct SmoothHeap
 		sz--;
 		if (!sz)
 		{
-			root = NULL;
+			root = nullptr;
 			return;
 		}
 		// Remove root
 		pnode x = root;
 		if (root->left == root)
 		{
-			root = NULL;
+			root = nullptr;
 		}
 		else
 		{
 			// Remove old root, make linear
-			root->right->left = NULL;
-			root->left->right = NULL;
+			root->right->left = nullptr;
+			root->left->right = nullptr;
 			root = root->right;
 		}
 		// Add children of x to the heaplist
@@ -161,7 +155,7 @@ struct SmoothHeap
 			pnode b = x->child->left; // Rightmost child
 			b->right = root;
 			if (root) root->left = b;
-			a->left = NULL;
+			a->left = nullptr;
 			root = a;
 		}
 		// Do restructuring
@@ -197,9 +191,9 @@ struct SmoothHeap
 			link(x);
 		}
 		root = x->left = x->right = x;
-		x->par = NULL;
+		x->par = nullptr;
 	}
-	void merge(SmoothHeap* a)
+	void merge(smooth* a)
 	{
 		if (!a->sz) return;
 		sz += a->sz;

@@ -1,29 +1,43 @@
 // Binomial heap with push, pop, top (minimum), merge, decrease key, delete
-typedef struct BinomialNode* pnode;
-#define MAXN 1000001
-struct BinomialNode
+template<class T> struct BinomialNode;
+template<class T> struct BinomialHeapNode // The actual node in the heap
 {
-	int val, degree;
+	typedef struct BinomialHeapNode<T>* pnode;
+	typedef struct BinomialNode<T>* pvalue;
+	pvalue val;
+	int degree;
 	pnode sibling, child, par; // sibling is either in the heap linked list of the sibling within a tree. 
 };
-namespace binomialheapalloc
+template<class T> struct BinomialNode // The value, stores a pointer to its node in the heap
 {
-// Nodes are allocated from this array
-BinomialNode _heap[MAXN]; 
-int _heapallocupto;
-pnode _newnode(int val)
+	typedef struct BinomialHeapNode<T>* pnode;
+	T val;
+	pnode inheap;
+};
+
+template<class T> BinomialHeapNode<T>* _binomialnewheapnode(BinomialNode<T>* val)
 {
-	pnode _new = _heap + _heapallocupto++; // Dynamic allocation is slow ... this is much faster
-	//pnode _new = new BinomialNode(); // Other method of allocating memory
+	typedef struct BinomialHeapNode<T>* pnode;
+	pnode _new = new BinomialHeapNode<T>(); // Other method of allocating memory
 	_new->val = val;
 	return _new;
 }
-}
-struct BinomialHeap
+
+template<class T> BinomialNode<T>* _binomialnewnode(T val)
 {
-	pnode root = NULL;
+	typedef struct BinomialNode<T>* pvalue;
+	pvalue _new = new BinomialNode<T>(); // Other method of allocating memory
+	_new->val = val;
+	return _new;
+}
+
+template<class T> struct binomial
+{
+	typedef struct BinomialHeapNode<T>* pnode;
+	typedef struct BinomialNode<T>* pvalue;
+	pnode root = 0;
 	int sz = 0;
-	pnode mn = NULL;
+	pnode mn = 0;
 	// Auxiliary functions
 	int size()
 	{
@@ -33,9 +47,9 @@ struct BinomialHeap
 	{
 		return !sz;
 	}
-	int top()
+	T top()
 	{
-		return mn->val;
+		return mn->val->val;
 	}
 	void swap(pnode &a, pnode &b) // Swaps two pnodes. Created to remove any reliance on STL
 	{
@@ -43,9 +57,9 @@ struct BinomialHeap
 		a = b;
 		b = c;
 	}
-	pnode mergetrees(pnode a, pnode b, pnode pre = NULL) // Merges trees with equal degree, creating one tree with degree+1
+	pnode mergetrees(pnode a, pnode b, pnode pre = 0) // Merges trees with equal degree, creating one tree with degree+1
 	{
-		if (b->val < a->val)
+		if (b->val->val < a->val->val)
 		{
 			// Swap them & replace a with b in the linked list
 			if (pre) pre->sibling = b;
@@ -59,16 +73,17 @@ struct BinomialHeap
 		b->sibling = a->child;
 		a->child = b;
 		b->par = a;
-		if (mn == NULL || a->val <= mn->val) mn = a;
+		if (mn == 0 || a->val->val <= mn->val->val) mn = a;
 		return a;
 	}
 
 	// Main functions
 	void push(pnode _new)
 	{
+		_new->val->inheap = _new;
 		// Worst case O(log(n)) - average O(1)
 		sz++;
-		if (mn == NULL || _new->val < mn->val) mn = _new; // Update mn if needed
+		if (mn == 0 || _new->val->val < mn->val->val) mn = _new; // Update mn if needed
 		_new->sibling = root; // Set this new node as the first one
 		root = _new; // set as root
 		while (_new->sibling && _new->degree == _new->sibling->degree) // Will merge until no longer necessary, then break
@@ -76,21 +91,26 @@ struct BinomialHeap
 			_new = mergetrees(_new, _new->sibling);
 		}
 	}
-	void push(int val)
+	void push(pvalue val)
 	{
-		pnode _new = binomialheapalloc::_newnode(val);
+		push(_binomialnewheapnode<T>(val));
+	}
+	pvalue push(T val)
+	{
+		pvalue _new = _binomialnewnode<T>(val);
 		push(_new);
+		return _new;
 	}
 	void merge(pnode b)
 	{
 		pnode a = root;
-		pnode pre = NULL;
+		pnode pre = 0;
 		while (a && b)
 		{
-			if (mn == NULL || b->val < mn->val) mn = b; // update mn if needed
-			if (mn == NULL || a->val < mn->val) mn = a; // update mn if needed
-			b->par = NULL; // Its a root - has no parent
-			a->par = NULL; // Its a root - has no parent
+			if (mn == 0 || b->val->val < mn->val->val) mn = b; // update mn if needed
+			if (mn == 0 || a->val->val < mn->val->val) mn = a; // update mn if needed
+			b->par = 0; // Its a root - has no parent
+			a->par = 0; // Its a root - has no parent
 			if (a->degree < b->degree)
 			{
 				// add a to the new list
@@ -122,8 +142,8 @@ struct BinomialHeap
 		}
 		while (a) // Add to the end
 		{
-			if (mn == NULL || a->val < mn->val) mn = a; // update mn if needed
-			a->par = NULL; // Its a root - has no parent
+			if (mn == 0 || a->val->val < mn->val->val) mn = a; // update mn if needed
+			a->par = 0; // Its a root - has no parent
 			if (pre) pre->sibling = a;
 			else root = a;
 			pre = a;
@@ -131,16 +151,16 @@ struct BinomialHeap
 		}
 		while (b) // Add to the end
 		{
-			if (mn == NULL || b->val < mn->val) mn = b; // update mn if needed
-			b->par = NULL; // Its a root - has no parent
+			if (mn == 0 || b->val->val < mn->val->val) mn = b; // update mn if needed
+			b->par = 0; // Its a root - has no parent
 			if (pre) pre->sibling = b;
 			else root = b;
 			pre = b;
 			b = b->sibling;
 		}
-		pre->sibling = NULL;
+		pre->sibling = 0;
 	}
-	void merge(BinomialHeap* A)
+	void merge(binomial* A)
 	{
 		if (!A->root) return;
 		sz += A->sz;
@@ -150,13 +170,13 @@ struct BinomialHeap
 	{
 		sz--;
 		pnode a = root;
-		pnode pre = NULL;
+		pnode pre = 0;
 		while (a != mn) // Find the tree with mn
 		{
 			pre = a;
 			a = a->sibling;
 		}	
-		mn = NULL;
+		mn = 0;
 		// Remove it from the tree
 		if (pre)
 		{
@@ -168,7 +188,7 @@ struct BinomialHeap
 		}
 
 		// Reverse the linked list of A's children
-		pre = NULL;
+		pre = 0;
 		a = a->child;
 		while (a)
 		{
@@ -183,21 +203,27 @@ struct BinomialHeap
 			pnode b = root;
 			while (b)
 			{
-				if (mn == NULL || b->val < mn->val) mn = b;
+				if (mn == 0 || b->val->val < mn->val->val) mn = b;
 				b = b->sibling;
 			}
 		}
 	}
-	void decreasekey(pnode &a, int val)
+	void decreasekey(pnode &a, pvalue val)
 	{
-		while (a->par && a->par->val > val)
+		while (a->par && a->par->val->val > val->val)
 		{
 			// Swap a and its parent
 			a->val = a->par->val;
+			a->val->inheap = a;
 			a = a->par;
 		}
 		a->val = val;
-		if (mn == NULL || val < mn->val) mn = a;
+		if (mn == 0 || val->val < mn->val->val) mn = a;
+	}
+	void decreasekey(pvalue a, T val)
+	{
+		a->val = val;
+		decreasekey(a->inheap, a);
 	}
 	void erase(pnode a) // Remove a node from the heap
 	{

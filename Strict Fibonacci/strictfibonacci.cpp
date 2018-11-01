@@ -1,17 +1,27 @@
 // Strict fibonacci heap (minimum)
 // Worst case complexities: O(1) push, top, decrease-key, merge, O(log(n)) pop & erase
-typedef struct HeapNode* pnode;
 typedef struct ActiveRecord* pactivenode;
-typedef struct RanklistNode* pranklist;
-typedef struct FixlistNode* pfixlist;
-typedef struct Value* pvalue;
-struct Value
+template<class T> struct RanklistNode;
+template<class T> struct FixlistNode;
+template<class T> struct SFHeapNode;
+template<class T> struct StrictFibonacciNode
 {
-	std::pair<int, int> val; // Value, index of whatever node points here
+	typedef struct SFHeapNode<T>* pnode;
+	int index; // The unique index of this node
+	T val; // The actual value
+	std::pair<T, int> value() // Returns { val, index } so that all values are unique
+	{
+		return { val, index };
+	}
+
 	pnode inheap; // Pointer to the location in the heap which has this value
 };
-struct HeapNode // Represents a node in the heap
+template<class T> struct SFHeapNode // Represents a node in the heap
 {
+	typedef struct SFHeapNode<T>* pnode;
+	typedef struct RanklistNode<T>* pranklist;
+	typedef struct FixlistNode<T>* pfixlist;
+	typedef struct StrictFibonacciNode<T>* pvalue;
 	pvalue val; // Value of this node
 	pnode left, right, parent, child; // Left and right siblings, parent and leftmost child
 	pactivenode active; // Stores whether the node is active or passive
@@ -26,8 +36,10 @@ struct ActiveRecord // Stores whether or not a node is active
 	int count; // Number of nodes pointing here
 };
 pactivenode passive; // Nodes can point here to be assigned as passive
-struct RanklistNode
+template<class T> struct RanklistNode
 {
+	typedef struct RanklistNode<T>* pranklist;
+	typedef struct FixlistNode<T>* pfixlist;
 	pranklist left, right; // Left and right nodes in the ranklist (rank+1, rank-1)
 	pfixlist loss; // Points to a node in the fixlist with the rank assigned to this node that has positive loss (if it exists)
 	pfixlist active; // Points to an active root in the fixlist with this rank if it exists
@@ -35,19 +47,26 @@ struct RanklistNode
 	int rootcount; // Number of nodes in the active root fix list 
 	int losscount; // Number of nodes in the loss fix list 
 };
-struct FixlistNode
+template<class T> struct FixlistNode
 {
+	typedef struct SFHeapNode<T>* pnode;
+	typedef struct RanklistNode<T>* pranklist;
+	typedef struct FixlistNode<T>* pfixlist;
 	pnode node; // Node that this corresponds to
 	pfixlist left, right; // Left and right nodes in the fixlist
 	pranklist rank; // Points to the node in the ranklist with this rank
 };
 int counter; // Used to assign indexes to nodes
-struct StrictFibonacciHeap // The actual heap
+template<class T> struct strictfibonacci // The actual heap
 {
+	typedef struct SFHeapNode<T>* pnode;
+	typedef struct RanklistNode<T>* pranklist;
+	typedef struct FixlistNode<T>* pfixlist;
+	typedef struct StrictFibonacciNode<T>* pvalue;
 	pnode root;
 	int sz;
 	pactivenode activenode; // Nodes in the heap point here if they are active
-	pnode nonlinkablechild; // Leftmost passive, non linkable child. Otherwise its the rightmost active child. Else null.
+	pnode nonlinkablechild; // Leftmost passive, non linkable child. Otherwise its the rightmost active child. Else nullptr.
 	pnode qfront; // Front of the queue
 	pranklist ranklist; // Rightmost (lowest) node in the ranklist
 	// Fix list pointers
@@ -59,13 +78,13 @@ struct StrictFibonacciHeap // The actual heap
 	// Part 4: Active nodes with loss > 1 or loss 1 where there are multiple nodes of the same rank
 
 	// Auxilary functions
-	StrictFibonacciHeap() // Assign the active node pointer, initialise variables to 0/NULL
+	strictfibonacci() // Assign the active node pointer, initialise variables to 0/nullptr
 	{
 		activenode = new ActiveRecord();
 		activenode->isactive = 1;
-		nonlinkablechild = qfront = root = NULL;
-		ranklist = NULL;
-		one = two = three = four = NULL;
+		nonlinkablechild = qfront = root = nullptr;
+		ranklist = nullptr;
+		one = two = three = four = nullptr;
 		sz = 0;
 	}
 	int size()
@@ -76,9 +95,9 @@ struct StrictFibonacciHeap // The actual heap
 	{
 		return !sz;
 	}
-	int top()
+	T top()
 	{
-		return root->val->val.first;
+		return root->val->value().first;
 	}
 	void swap(pnode &a, pnode &b)
 	{
@@ -91,7 +110,7 @@ struct StrictFibonacciHeap // The actual heap
 		if (!x) return 0;
 		if (x->active->isactive) return 0; // Node is active
 		// Leftmost child is active if it exists - so just check if leftmost child is active
-		if (x->child == NULL) return 1; // Childless
+		if (x->child == nullptr) return 1; // Childless
 		if (x->child->active->isactive) return 0;
 		else return 1;
 	}
@@ -103,7 +122,7 @@ struct StrictFibonacciHeap // The actual heap
 	}
 	void addToFixList(pfixlist a, pfixlist &fixlist) // Inserts a to the front of the fixlist 
 	{
-		a->left = NULL;
+		a->left = nullptr;
 		a->right = fixlist;
 		if (fixlist) fixlist->left = a;
 		fixlist = a;
@@ -112,19 +131,19 @@ struct StrictFibonacciHeap // The actual heap
 	// Transformations
 	void link(pnode x, pnode y) // Makes y a child of x
 	{
-		assert(y->val->val > x->val->val);
+		assert(y->val->value() > x->val->value());
 		if (y->parent) // If y is not the old root
 		{
 			if (y == nonlinkablechild) // Update the non linkable child if needed.
 			{
-				if (y->right == y) nonlinkablechild = NULL;
+				if (y->right == y) nonlinkablechild = nullptr;
 				else if (y != y->parent->child) nonlinkablechild = y->left;
 				else nonlinkablechild = y->right;
-				if (isPassiveLinkable(nonlinkablechild)) nonlinkablechild = NULL;
+				if (isPassiveLinkable(nonlinkablechild)) nonlinkablechild = nullptr;
 			}
 			if (y->left == y) // y is the only child of its parent
 			{
-				y->parent->child = NULL;
+				y->parent->child = nullptr;
 			}
 			else
 			{
@@ -142,14 +161,14 @@ struct StrictFibonacciHeap // The actual heap
 			{
 				// Move across one
 				if (!isPassiveLinkable(y->parent->left)) nonlinkablechild = y->parent->left;
-				else nonlinkablechild = NULL;
+				else nonlinkablechild = nullptr;
 			}
 		}
 		y->parent = x;
 		// Link y to x
 		if (x == root) // SPECIAL CASE: Need to consider whether passive linkable or not
 		{
-			if (x->child == NULL) // x is currently a leaf, make y the only child
+			if (x->child == nullptr) // x is currently a leaf, make y the only child
 			{
 				x->child = y;
 				y->left = y->right = y;
@@ -167,7 +186,7 @@ struct StrictFibonacciHeap // The actual heap
 				{
 					x->child = y;
 				}
-				if (nonlinkablechild == NULL && y->active->isactive) nonlinkablechild = y;
+				if (nonlinkablechild == nullptr && y->active->isactive) nonlinkablechild = y;
 			}
 			else // Is passive but not linkable, place to the right of non-linkable
 			{
@@ -196,7 +215,7 @@ struct StrictFibonacciHeap // The actual heap
 			}
 			return;
 		}
-		if (x->child == NULL) // x is currently a leaf, make y the only child
+		if (x->child == nullptr) // x is currently a leaf, make y the only child
 		{
 			x->child = y;
 			y->left = y->right = y;
@@ -256,15 +275,15 @@ struct StrictFibonacciHeap // The actual heap
 	}
 	bool activeRootReduction() // Reduces number of active roots by 1, degree of root + at most 1
 	{ 	// Returns whether it was possible or not
-		if (one == NULL) return false; // No nodes to do an active root reduction to
-		if (one->right == NULL) assert(false);
-		if (one->right == NULL) return false; // No nodes to do an active root reduction to
+		if (one == nullptr) return false; // No nodes to do an active root reduction to
+		if (one->right == nullptr) assert(false);
+		if (one->right == nullptr) return false; // No nodes to do an active root reduction to
 		pfixlist x = one;
 		pfixlist y = one->right;
-		x->node->fix = y->node->fix = NULL;
+		x->node->fix = y->node->fix = nullptr;
 		assert(x->rank == y->rank);
 		one = y->right;
-		if (one) one->left = NULL;
+		if (one) one->left = nullptr;
 		x->rank->rootcount-=2;
 		if (x->rank->rootcount) // Still active roots left with same rank as x and y
 		{
@@ -275,7 +294,7 @@ struct StrictFibonacciHeap // The actual heap
 				moveSection(one, two, one);
 			}
 		}
-		else x->rank->active = NULL;
+		else x->rank->active = nullptr;
 
 		if (one && one->rank->active != one)
 		{
@@ -284,20 +303,20 @@ struct StrictFibonacciHeap // The actual heap
 		}
 		if (one) assert(one->rank == one->right->rank);
 
-		if (x->node->val->val > y->node->val->val) std::swap(x, y); // Make sure x.val < y.val
+		if (x->node->val->value() > y->node->val->value()) std::swap(x, y); // Make sure x.val < y.val
 		assert(x != y);
 		link(x->node, y->node); // Make y a child of x
 		// If the rightmost child of x is passive, make it a child of the root
-		if (x->node->child != NULL)
+		if (x->node->child != nullptr)
 		{
 			pnode a = x->node->child->left; // Rightmost child
 			if (!a->active->isactive) link(root, a);
 		}
 
 		// Increase the rank of x by one
-		if (x->rank->left == NULL) // Need a new node
+		if (x->rank->left == nullptr) // Need a new node
 		{
-			pranklist newrank = new RanklistNode();
+			pranklist newrank = new RanklistNode<T>();
 			newrank->right = x->rank;
 			x->rank->left = newrank;
 		}
@@ -321,10 +340,10 @@ struct StrictFibonacciHeap // The actual heap
 		// Check if they are all passive linkable
 		if (!isPassiveLinkable(x) || !isPassiveLinkable(y) || !isPassiveLinkable(z)) return false;
 		// sort x, y and z by value so that x.key < y.key < z.key
-		if (x->val->val > y->val->val) swap(x, y);
-		if (y->val->val > z->val->val) swap(y, z);
-		if (x->val->val > y->val->val) swap(x, y);
-		assert(x->val->val < y->val->val && y->val->val < z->val->val);
+		if (x->val->value() > y->val->value()) swap(x, y);
+		if (y->val->value() > z->val->value()) swap(y, z);
+		if (x->val->value() > y->val->value()) swap(x, y);
+		assert(x->val->value() < y->val->value() && y->val->value() < z->val->value());
 		// Mark x and y as active
 		assert(nonlinkablechild != y && nonlinkablechild != z);
 		x->active = y->active = activenode;
@@ -336,26 +355,26 @@ struct StrictFibonacciHeap // The actual heap
 		// Make x the leftmost child of the root
 		root->child = x;
 		// Update nonlinkablechild if needed
-		if (nonlinkablechild == NULL && !isPassiveLinkable(x)) nonlinkablechild = x;
+		if (nonlinkablechild == nullptr && !isPassiveLinkable(x)) nonlinkablechild = x;
 		pranklist r = ranklist;
-		if (r == NULL)
+		if (r == nullptr)
 		{
-			r = new RanklistNode();
+			r = new RanklistNode<T>();
 			ranklist = r;
 		}
 		y->rank = r;
 		// rank of x becomes one
 		r = r->left;
-		if (r == NULL)
+		if (r == nullptr)
 		{
-			r = new RanklistNode();
+			r = new RanklistNode<T>();
 			r->right = ranklist;
 			ranklist->left = r;
 		}
 		x->rank = r;
 
 		// insert x into the fix list
-		pfixlist a = new FixlistNode();
+		pfixlist a = new FixlistNode<T>();
 		a->node = x;
 		a->rank = x->rank;
 		insertIntoFixList(a, r->active, r->rootcount, one, two);
@@ -367,7 +386,7 @@ struct StrictFibonacciHeap // The actual heap
 		if (x->loss == 1)
 		{
 			// Insert into the fix list
-			pfixlist a = new FixlistNode();
+			pfixlist a = new FixlistNode<T>();
 			a->node = x;
 			a->rank = x->rank;
 			assert(x->active->isactive);
@@ -393,7 +412,7 @@ struct StrictFibonacciHeap // The actual heap
 			if (a->left) a->left->right = a->right;
 			if (!count) // Was the only one
 			{
-				active = NULL;
+				active = nullptr;
 			}
 			else
 			{
@@ -408,7 +427,7 @@ struct StrictFibonacciHeap // The actual heap
 				}
 			}
 			delete a;
-			x->fix = NULL;
+			x->fix = nullptr;
 		}
 	}
 	
@@ -430,7 +449,7 @@ struct StrictFibonacciHeap // The actual heap
 		if (isActiveRoot(x) || x->loss)
 		{
 			// Insert into fix list
-			pfixlist a = new FixlistNode();
+			pfixlist a = new FixlistNode<T>();
 			a->node = x;
 			a->rank = x->rank;
 			if (x->loss) insertIntoFixList(a, x->rank->loss, x->rank->losscount, four, three); // Into loss fix list
@@ -445,7 +464,7 @@ struct StrictFibonacciHeap // The actual heap
 		
 		if (!x->rank->left) // Need new ranklist node
 		{
-			pranklist a = new RanklistNode();
+			pranklist a = new RanklistNode<T>();
 			a->right = x->rank;
 			x->rank->left = a;
 		}
@@ -455,7 +474,7 @@ struct StrictFibonacciHeap // The actual heap
 		// Insert into fix list
 		if (x->loss) 
 		{
-			pfixlist a = new FixlistNode();
+			pfixlist a = new FixlistNode<T>();
 			a->node = x;
 			a->rank = x->rank;
 			insertIntoFixList(a, x->rank->loss, x->rank->losscount, four, three);
@@ -469,7 +488,7 @@ struct StrictFibonacciHeap // The actual heap
 		x->loss = 0;
 		// x is now an active root
 		// Insert into fix list
-		pfixlist a = new FixlistNode();
+		pfixlist a = new FixlistNode<T>();
 		a->node = x;
 		a->rank = x->rank;
 		insertIntoFixList(a, a->rank->active, a->rank->rootcount, one, two);
@@ -480,7 +499,7 @@ struct StrictFibonacciHeap // The actual heap
 	}
 	void twoNodeLossReduction(pnode x, pnode y)
 	{
-		if (x->val->val > y->val->val) swap(x, y); // Make sure x.val < y.val
+		if (x->val->value() > y->val->value()) swap(x, y); // Make sure x.val < y.val
 		pnode z = y->parent; // parent of y
 		x->loss = y->loss = 0;
 		link(x, y); // make y a child of x
@@ -527,7 +546,7 @@ struct StrictFibonacciHeap // The actual heap
 	}
 	pnode newNode(pvalue v)
 	{
-		pnode x = new HeapNode();
+		pnode x = new SFHeapNode<T>();
 		v->inheap = x;
 		x->val = v;
 		if (!passive) // If passive does not exist
@@ -535,14 +554,15 @@ struct StrictFibonacciHeap // The actual heap
 			passive = new ActiveRecord();
 		}
 		x->active = passive; // Node is passive
-		if (!ranklist) ranklist = new RanklistNode(); // If there is no ranklist, make one
+		if (!ranklist) ranklist = new RanklistNode<T>(); // If there is no ranklist, make one
 		x->rank = ranklist;
 		return x;
 	}
-	pnode newNode(int val) // returns a pnode with value of val and rank of 0 
+	pnode newNode(T val) // returns a pnode with value of val and rank of 0 
 	{
-		pvalue v = new Value(); // Create a pointer to the value
-		v->val = { val, counter++ };
+		pvalue v = new StrictFibonacciNode<T>(); // Create a pointer to the value
+		v->val = val;
+		v->index = counter++;
 		return newNode(v);
 	}
 
@@ -555,7 +575,7 @@ struct StrictFibonacciHeap // The actual heap
 			root = x;
 			return;
 		}
-		if (x->val->val > root->val->val) // Just make a child of the root
+		if (x->val->value() > root->val->value()) // Just make a child of the root
 		{
 			link(root, x);
 			// Insert into the queue
@@ -579,7 +599,7 @@ struct StrictFibonacciHeap // The actual heap
 			// Link the root to x
 			pnode oldroot = root;
 			root = x;
-			nonlinkablechild = NULL;
+			nonlinkablechild = nullptr;
  			link(root, oldroot);
 			// the old root onto the queue
 			if (!qfront)
@@ -607,16 +627,23 @@ struct StrictFibonacciHeap // The actual heap
 			else break; // Not possible, break
 		}
 	}
-	void push(int val)
+	void push(pvalue val)
 	{
+		val->index = counter++;
 		push(newNode(val));
 	}
-	void decreasekey(pnode x, int val)
+	pvalue push(T val)
 	{
-		x->val->val.first = val; // Update value
-		if (x->parent == NULL) return; // If x is the root
+		pnode _new = newNode(val);
+		push(_new);
+		return _new->val;
+	}
+	void decreasekey(pnode x, T val)
+	{
+		x->val->val = val; // Update value
+		if (x->parent == nullptr) return; // If x is the root
 		pnode y = x->parent;
-		if (x->val->val < root->val->val)
+		if (x->val->value() < root->val->value())
 		{
 			// swap values
 			std::swap(x->val, root->val);
@@ -630,7 +657,7 @@ struct StrictFibonacciHeap // The actual heap
 			removeFromFixList(x, x->rank->loss, x->rank->losscount, four, three);
 			x->loss = 0;
 			// Make x an active root, insert into fix list
-			pfixlist a = new FixlistNode();
+			pfixlist a = new FixlistNode<T>();
 			a->node = x;
 			a->rank = x->rank;
 			insertIntoFixList(a, a->rank->active, a->rank->rootcount, one, two);
@@ -652,13 +679,17 @@ struct StrictFibonacciHeap // The actual heap
 			else break; // Not possible, break
 		}
 	}
+	void decreasekey(pvalue x, T val)
+	{
+		decreasekey(x->inheap, val);
+	}
 	void pop()
 	{
 		sz--;
 		if (sz == 0)
 		{
-			root = NULL;
-			qfront = NULL;
+			root = nullptr;
+			qfront = nullptr;
 			return;
 		}
 		pnode x = root->child;
@@ -666,7 +697,7 @@ struct StrictFibonacciHeap // The actual heap
 		pnode a = x;
 		do
 		{
-			if (a->val->val < x->val->val) x = a;
+			if (a->val->value() < x->val->value()) x = a;
 			a = a->right;
 		}
 		while (a != root->child);
@@ -686,7 +717,7 @@ struct StrictFibonacciHeap // The actual heap
 					removeFromFixList(a, a->rank->loss, a->rank->losscount, four, three);
 					a->loss = 0;
 					// Insert into fix list
-					pfixlist b = new FixlistNode();
+					pfixlist b = new FixlistNode<T>();
 					b->node = a;
 					b->rank = a->rank;
 					insertIntoFixList(b, b->rank->active, b->rank->rootcount, one, two); // Add to active root fix list
@@ -695,7 +726,7 @@ struct StrictFibonacciHeap // The actual heap
 				}
 			}
 		}
-		nonlinkablechild = NULL;
+		nonlinkablechild = nullptr;
 		if (x->child)
 		{
 			// move passive linkable children to the right
@@ -748,11 +779,11 @@ struct StrictFibonacciHeap // The actual heap
 		// Make all other children of the root a child of x
 		delete root;
 		root = x;
-		x->parent = NULL;
+		x->parent = nullptr;
 		a = x->right;
 		while (a != x)
 		{
-			a->parent = NULL;
+			a->parent = nullptr;
 			pnode next = a->right;
 			link(root, a); // Make a child of the root
 			a = next;
@@ -790,7 +821,7 @@ struct StrictFibonacciHeap // The actual heap
 		pop();
 	}
 
-	void merge(StrictFibonacciHeap* x) // Merge operation, seems to be behaving correctly
+	void merge(strictfibonacci* x) // Merge operation, seems to be behaving correctly
 	{
 		if (!x->sz)
 		{
@@ -818,9 +849,9 @@ struct StrictFibonacciHeap // The actual heap
 		// Make all nodes in x passive
 		x->activenode->isactive = false;
 		pnode newqueue = x->qfront;
-		if (root->val->val < x->root->val->val)
+		if (root->val->value() < x->root->val->value())
 		{
-			if (x->sz > sz) nonlinkablechild = NULL; // all children of root are now passive linkable
+			if (x->sz > sz) nonlinkablechild = nullptr; // all children of root are now passive linkable
 			// Link x->root to root;
 			link(root, x->root);
 			// Add x->root to the end of the queue
@@ -828,9 +859,9 @@ struct StrictFibonacciHeap // The actual heap
 		}
 		else
 		{
-			if (x->sz <= sz) nonlinkablechild = NULL; // all children of x->root are now passive linkable
+			if (x->sz <= sz) nonlinkablechild = nullptr; // all children of x->root are now passive linkable
 			else nonlinkablechild = x->nonlinkablechild;
-			// Since all nodes in x are passive-linkable now, set non-linkable child to null
+			// Since all nodes in x are passive-linkable now, set non-linkable child to nullptr
 			pnode a = root;
 			root = x->root;
 			link(root, a);

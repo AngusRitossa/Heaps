@@ -1,34 +1,36 @@
+#include <algorithm>
 // Fibonacci Heap with push, pop, erase, top (minimum), merge & decrease key
-typedef struct FibNode* pnode;
-#define MAXN 1000001
-struct FibNode
+template<class T> struct FibonacciNode
 {
-	int val, degree; // Value of the node and number of children
+	typedef struct FibonacciNode<T>* pnode;
+	T val;
+	int degree; // Value of the node and number of children
 	bool onechildcut; // Whether one of its children has been cut due to decrease key
 	pnode left, right, child, par; // When the node is the root of the heap, left and right refer to its neighbours in the heap linked list
 	// When the node is not the root of the heap, left and right refer to its neighbouring siblings
 };
 // Global variables, used for intermediate storage during the pop function
-pnode _ofsize[100];
-int _ofsizedone[100], _ofsizeupto;
-namespace fibheapalloc
+
+template<class T> FibonacciNode<T>* _fibonaccinewnode(T val)
 {
-// Nodes are allocated from this array
-FibNode _heap[MAXN]; 
-int _heapallocupto;
-pnode _newnode(int val)
-{
-	pnode _new = _heap + _heapallocupto++; // Dynamic allocation is slow ... this is much faster
-	//pnode _new = new FibNode(); // Other method of allocating memory
+	typedef struct FibonacciNode<T>* pnode;
+	pnode _new = new FibonacciNode<T>();
 	_new->val = val;
 	return _new;
 }
-}
-struct FibHeap
+
+template<class T> struct fibonacci
 {
-	pnode mn; // Pointer to the maximum value in the heap
-	int sz; // Number of elements in the heap
-	pnode temproot; // Used in the pop function
+	typedef struct FibonacciNode<T>* pnode;
+	pnode _ofsize[50];
+	int _ofsizedone[50], _ofsizeupto;
+	fibonacci()
+	{
+		std::fill_n(_ofsizedone, 50, 0);
+	}
+	pnode mn = 0; // Pointer to the maximum value in the heap
+	int sz = 0; // Number of elements in the heap
+	pnode temproot = 0; // Used in the pop function
 	// Auxiliary functions
 	int size()
 	{
@@ -38,7 +40,7 @@ struct FibHeap
 	{
 		return !sz;
 	}
-	int top()
+	T top()
 	{
 		return mn->val;
 	}
@@ -67,7 +69,7 @@ struct FibHeap
 		a->degree++;
 		b->right = a->child;
 		if (b->right) b->right->left = b;
-		b->left = NULL;
+		b->left = 0;
 		a->child = b;
 		b->par = a;
 		return a;
@@ -78,7 +80,7 @@ struct FibHeap
 		_new->left = mn;
 		mn->right = _new;
 		_new->right->left = _new;
-		_new->par = NULL;
+		_new->par = 0;
 		// If the new value is smaller, set as root
 		if (_new->val < mn->val)
 		{
@@ -101,10 +103,11 @@ struct FibHeap
 		sz++;
 		addintoheap(_new);
 	}
-	void push(int val) // Insert a value into the heap
+	pnode push(T val) // Insert a value into the heap
 	{
-		pnode _new = fibheapalloc::_newnode(val);
+		pnode _new = _fibonaccinewnode(val);
 		push(_new);
+		return _new;
 	}
 
 	void pop() // Remove the smallest element from the heap
@@ -112,7 +115,7 @@ struct FibHeap
 		sz--;
 		if (!sz) // If only one element, just remove it
 		{
-			mn = NULL;
+			mn = 0;
 			return;
 		}
 		// Remove mn from the heap
@@ -123,8 +126,8 @@ struct FibHeap
 			mn = temproot = mn->child;
 			pnode child = mn->right;
 			mn->left = mn->right = mn;
-			mn->par = NULL;
-			while (child != NULL)
+			mn->par = 0;
+			while (child != 0)
 			{
 				pnode nextchild = child->right;
 				addintoheap(child);
@@ -142,7 +145,7 @@ struct FibHeap
 
 			// Add the children of mn to the heap
 			pnode child = mn->child;
-			while (child != NULL)
+			while (child != 0)
 			{
 				pnode nextchild = child->right; // Store the next child because it will be lost when we insert child into the heap
 				// Insert child into heap
@@ -150,7 +153,7 @@ struct FibHeap
 				child->left = temproot;
 				temproot->right = child;
 				child->right->left = child;
-				child->par = NULL;
+				child->par = 0;
 				// Set child to its sibling
 				child = nextchild;
 			}
@@ -182,7 +185,7 @@ struct FibHeap
 		}
 		while (a != temproot);
 	}
-	void merge(FibHeap *a) // Merge Fibonacci Heap a into this heap
+	void merge(fibonacci<T> *a) // Merge Fibonacci Heap a into this heap
 	{
 		// Cut each heap between their maximum and the element to the right of that, then splice together
 		sz += a->sz; // update size of heap
@@ -212,26 +215,26 @@ struct FibHeap
 			a->onechildcut = 0;
 			a->degree--;
 		}
-		if (p == NULL) return;
+		if (p == 0) return;
 		if (p->child == a) // A is the first child of p
 		{
 			p->child = a->right;
-			if (a->right) a->right->left = NULL;
+			if (a->right) a->right->left = 0;
 		}
 		else // A is somewhere in the middle. Remove a from the child linked-list
 		{
 			if (a->left) a->left->right = a->right;
 			if (a->right) a->right->left = a->left;
 		}
-		a->par = NULL;
+		a->par = 0;
 		// insert a into the heap linked list
 		addintoheap(a);
 	}
-	void decreasekey(pnode a, int val) // Decrease the value of a node. If val > a->val the heap-order will be broken
+	void decreasekey(pnode a, T val) // Decrease the value of a node. If val > a->val the heap-order will be broken
 	{
 		// Update the value of a
 		a->val = val;
-		if (a->par != NULL && a->par->val > a->val) // heap order has been violated
+		if (a->par != 0 && a->par->val > a->val) // heap order has been violated
 		{
 			pnode p = a->par;
 			cutfromtree(a); // Cut a from the tree

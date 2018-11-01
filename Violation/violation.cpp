@@ -1,29 +1,33 @@
+#include <algorithm>
 // Minimum violation heap, O(1) push, decrease-key, merge. O(log(n)) pop
-#define MAXN 1000000
-typedef struct ViolationNode* pnode;
-struct ViolationNode
+template<class T> struct ViolationNode
 {
-	int val;
+	typedef struct ViolationNode<T>* pnode;
+	T val;
 	int rank;
 	bool isRoot;
 	pnode child, left, right; // Pointer two leftmost child, right/left nodes in sibling linked list/main linked list
 };
 
-// Nodes are allocated from this array
-ViolationNode nodesForAlloc[MAXN]; 
-int heapallocupto;
-pnode newnode(int val)
+template<class T> ViolationNode<T>* newviolationnode(T val)
 {
-	pnode _new = nodesForAlloc + heapallocupto++; // Dynamic allocation is slow ...
+	typedef struct ViolationNode<T>* pnode;
+	pnode _new = new ViolationNode<T>();
 	_new->val = val;
 	return _new;
 }
-pnode _first[100], _second[100]; // Used for intermediary storage during pop
-int mxrank; // Used for intermediary storage
-struct ViolationHeap
+template<class T> struct violation
 {
-	pnode root; // Pointer to root of heap containing minimum value
-	int sz;
+	typedef struct ViolationNode<T>* pnode;
+	pnode root = nullptr; // Pointer to root of heap containing minimum value
+	int sz = 0;
+	pnode _first[50], _second[50]; // Used for intermediary storage during pop
+	int mxrank = 0; // Used for intermediary storage
+	violation()
+	{
+		std::fill_n(_first, 50, nullptr);
+		std::fill_n(_second, 50, nullptr);
+	}
 	// Auxilary functions
 	int size()
 	{
@@ -33,7 +37,7 @@ struct ViolationHeap
 	{
 		return !sz;
 	}
-	int top()
+	T top()
 	{
 		return root->val;
 	}
@@ -48,9 +52,9 @@ struct ViolationHeap
 			{
 				r += a->child->right->rank;
 			}
-			else r--; // Rank of NULL node is -1
+			else r--; // Rank of nullptr node is -1
 		}
-		else r--; // Rank of NULL node is -1
+		else r--; // Rank of nullptr node is -1
 		return r/2 + 1;
 	}
 	void swap(pnode &a, pnode &b) // Swaps two pnodes
@@ -115,9 +119,11 @@ struct ViolationHeap
 		sz++;
 		insertIntoHeap(a, root);
 	}
-	void push(int val)
+	pnode push(T val)
 	{
-		push(newnode(val));
+		pnode _new = newviolationnode<T>(val);
+		push(_new);
+		return _new;
 	}
 	void merge(pnode a)
 	{
@@ -139,7 +145,7 @@ struct ViolationHeap
 		// Update root if needed
 		if (a->val < root->val) root = a;
 	}
-	void merge(ViolationHeap *a)
+	void merge(violation *a)
 	{
 		sz += a->sz;
 		if (!root) root = a->root;
@@ -155,7 +161,7 @@ struct ViolationHeap
 		{
 			// Merge them
 			a = merge(a, _first[r], _second[r]);
-			_first[r] = _second[r] = NULL;
+			_first[r] = _second[r] = nullptr;
 			dealWithNode(a);
 		}
 	}
@@ -164,7 +170,7 @@ struct ViolationHeap
 		sz--;
 		if (!sz) // Heap is now empty
 		{
-			root = NULL;
+			root = nullptr;
 			return;
 		}
 		mxrank = 0;
@@ -185,31 +191,31 @@ struct ViolationHeap
 			dealWithNode(a);
 			a = next;
 		}
-		root = NULL;
+		root = nullptr;
 		// Make the new heap
 		for (int i = 0; i <= mxrank; i++)
 		{
 			if (_first[i]) 
 			{
 				insertIntoHeap(_first[i], root);
-				_first[i] = NULL;
+				_first[i] = nullptr;
 			}
 			if (_second[i]) 
 			{
 				insertIntoHeap(_second[i], root);
-				_second[i] = NULL;
+				_second[i] = nullptr;
 			}
 		}
 	}
 	pnode parent(pnode a)
 	{
-		// Returns the parent of a if a is active, else returns NULL
-		if (a->isRoot) return NULL;
+		// Returns the parent of a if a is active, else returns nullptr
+		if (a->isRoot) return nullptr;
 		if (a->left->child == a) return a->left;
 		if (a->left->left->child == a->left) return a->left->left;
-		return NULL;
+		return nullptr;
 	}
-	void decreasekey(pnode a, int val)
+	void decreasekey(pnode a, T val)
 	{
 		a->val = val;
 		if (a->isRoot)

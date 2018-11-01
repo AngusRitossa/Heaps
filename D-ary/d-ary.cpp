@@ -1,12 +1,12 @@
 // Minimum D-ary heap, generalisation of binary heap
 // O(log) push, pop, decrease key
-#define D 16
-#define MAXN 10000000
-struct daryheap
+#define D 4
+#define MAXN 1000000
+template<class T> struct dary
 {
-	int heap[MAXN];
-	int inheap[MAXN];
-	int at[MAXN];
+	T heap[MAXN];
+	int node[MAXN]; // The index of the node here
+	int at[MAXN]; // Where is the node with this index
 	int upto, sz;
 
 	// Auxilary functions
@@ -18,15 +18,22 @@ struct daryheap
 	{
 		return !sz;
 	}
-	int top()
+	T top()
 	{
 		return heap[0];
 	}
 	void swap(int a, int b) // Swaps two elements in the heap
 	{
-		int c = heap[a];
+		T c = heap[a];
 		heap[a] = heap[b];
 		heap[b] = c;
+
+		int d = node[a];
+		node[a] = node[b];
+		node[b] = d;
+
+		at[node[a]] = a;
+		at[node[b]] = b;
 	}
 	void bubbleup(int a) // Swaps with parents until its in the correct position
 	{
@@ -45,7 +52,7 @@ struct daryheap
 	{
 		while (true)
 		{
-			int mn = heap[a];
+			T mn = heap[a];
 			int mnchild = -1;
 			for (int i = 1; i <= D; i++)
 			{
@@ -63,10 +70,11 @@ struct daryheap
 	}
 
 	// Main functions
-	void push(int val)
+	void push(T val)
 	{
 		// Insert as a leaf
 		heap[sz] = val;
+		node[sz] = upto;
 		at[upto++] = sz;
 		// Bubble up
 		bubbleup(sz++);
@@ -79,10 +87,12 @@ struct daryheap
 		// Bubble down
 		bubbledown(0);
 	}
-	void decreasekey(int a, int val)
+	void decreasekey(int a, T val)
 	{
 		// Update value, bubble up
 		heap[a] = val;
 		bubbleup(a);
 	}
 };
+#undef D
+#undef MAXN

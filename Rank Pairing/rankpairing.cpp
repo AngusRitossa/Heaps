@@ -1,33 +1,33 @@
+#include <algorithm>
 // Minimum rank-pairing heap. 
-typedef struct Node* pnode;
-#define MAXN 1000000
-struct Node
+template<class T> struct RankPairingNode
 {
-	int val, rank; // Value of the node
+	typedef struct RankPairingNode<T>* pnode;
+	T val;
+	int rank; // Value of the node
 	pnode par, left, right; // Structure is maintained as a binary heap maintaining partial heap order. In particular, the left children satifsy it.
 	bool isRoot; // Stores if the node is a root
 	// Note: Roots are stored in a doubly linked circular linked list. 
 	// In this case, left and right refer to the left and right siblings in this list
 	// The root will have one left child, which will be stored in the par pointer. 
 };
-pnode nodesOfRank[100]; // Used for intermediate storage during pop functions
-
-namespace rankpairingalloc // For allocating memory
+template<class T> RankPairingNode<T>* _newrankpairingnode(T val)
 {
-	Node heapalloc[MAXN];
-	int upto;
-	pnode newnode(int val)
-	{
-		pnode _new = heapalloc + upto++;
-		// pnode _new = new Node();
-		_new->val = val;
-		return _new;
-	}
+	typedef struct RankPairingNode<T>* pnode;
+	pnode _new = new RankPairingNode<T>();
+	_new->val = val;
+	return _new;
 }
-struct RPHeap
+template<class T> struct rankpairing
 {
+	typedef struct RankPairingNode<T>* pnode;
 	int sz = 0;
-	pnode root = NULL;
+	pnode root = nullptr;
+	pnode nodesOfRank[50]; // Used for intermediate storage during pop functions
+	rankpairing()
+	{
+		std::fill_n(nodesOfRank, 50, nullptr);
+	}
 	// Auxilary functions
 	int size()
 	{
@@ -37,7 +37,7 @@ struct RPHeap
 	{
 		return !sz;
 	}
-	int top()
+	T top()
 	{
 		return root->val;
 	}
@@ -83,13 +83,14 @@ struct RPHeap
 		sz++;
 		addIntoHeap(root, a);
 	}
-	void push(int val) // Add the value a into the heap
+	pnode push(T val) // Add the value a into the heap
 	{
-		pnode a = rankpairingalloc::newnode(val);
+		pnode a = _newrankpairingnode<T>(val);
 		sz++;
 		addIntoHeap(root, a);
+		return a;
 	}
-	void merge(RPHeap* a)
+	void merge(rankpairing* a)
 	{
 		if (!a->root) return;
 		sz+=a->sz;
@@ -120,7 +121,7 @@ struct RPHeap
 	void pop() // Removes root from the heap
 	{
 		sz--;
-		pnode newroot = NULL;
+		pnode newroot = nullptr;
 		int mxrank = 0; // Maximum rank seen
 		pnode c = root->par;
 		while (c) // Insert the chain of right children into new heap
@@ -131,7 +132,7 @@ struct RPHeap
 			if (nodesOfRank[c->rank]) // Do merge, insert into heap
 			{
 				pnode a = nodesOfRank[c->rank];
-				nodesOfRank[c->rank] = NULL;
+				nodesOfRank[c->rank] = nullptr;
 				addIntoHeap(newroot, mergetrees(a, c));
 			}
 			else // Store for a possible future merge
@@ -148,7 +149,7 @@ struct RPHeap
 			if (nodesOfRank[c->rank]) // Do merge, insert into heap
 			{
 				pnode a = nodesOfRank[c->rank];
-				nodesOfRank[c->rank] = NULL;
+				nodesOfRank[c->rank] = nullptr;
 				addIntoHeap(newroot, mergetrees(a, c));
 			}
 			else // Store for a possible future merge
@@ -164,12 +165,12 @@ struct RPHeap
 			if (nodesOfRank[i])
 			{
 				addIntoHeap(newroot, nodesOfRank[i]);
-				nodesOfRank[i] = NULL;
+				nodesOfRank[i] = nullptr;
 			}
 		}
 		root = newroot;
 	}
-	void decreasekey(pnode a, int val) // Decrease the value at a to val. Uses type-2 rank reduction 
+	void decreasekey(pnode a, T val) // Decrease the value at a to val. Uses type-2 rank reduction 
 	{
 		a->val = val;
 		if (a->isRoot) 

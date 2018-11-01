@@ -1,70 +1,60 @@
+#include <algorithm>
 // Quake heap, O(1) push, decrease-key, O(log(n)) pop, merge
-#define MAXN 1000001
-#define MXRANK 80
+#define MXRANK 60
 #define A1 4 // Required ratio of amounts of each rank = A1/A2
 #define A2 5
-typedef struct QuakeValue* pvalue;
-typedef struct QuakeNode* pnode;
-struct QuakeValue
+template<class T> struct QuakeHeapNode;
+template<class T> struct QuakeNode
 {
+	typedef struct QuakeHeapNode<T>* pnode;
 	pnode inheap; // Highest occurrence of it in the heap
-	int val; // Value
+	T val; // Value
 };
-struct QuakeNode
+template<class T> struct QuakeHeapNode
 {
+	typedef struct QuakeHeapNode<T>* pnode;
+	typedef struct QuakeNode<T>* pvalue;
 	// A tournament node in the heap
 	pnode left, right, par; // Left & right children, parent within one tree
 	pnode l, r; // Left and right trees, if this node is a root
 	pvalue val; // Value stored in this tree, i.e. lowest out of its two children
 	int rank;
 };
-// Used for allocating memory for quakevalue
-int allocupto;
-QuakeValue allocarray[MAXN];
-pvalue newvaluenode(int val)
+// Used for allocating memory for QuakeNode
+template<class T> QuakeNode<T>* quakenewvaluenode(T val)
 {
-	pvalue _new = allocarray + allocupto++;
+	typedef struct QuakeNode<T>* pvalue;
+	pvalue _new = new QuakeNode<T>();
 	_new->val = val;
 	return _new;
 }
-// Used for allocating memory for quakenodes. Faster than dynamic allocation
-// Since O(nlogn) nodes will be used over the life, but only O(n) at once, nodes will be reused. This is faster the reallocating
-int allocupto2;
-QuakeNode allocarray2[5*MAXN];
-pnode reusable; // Singly linked list of reusable nodes
-void deletenode(pnode a)
+
+template<class T> void deletenode(QuakeHeapNode<T>* a)
 {
-	a->right = reusable;
-	reusable = a;
+	delete a;
 }
-pnode newnode()
+template<class T> QuakeHeapNode<T>* _quakenewnode()
 {
-	pnode _new;
-	if (!reusable)
-	{
-		_new = allocarray2 + allocupto2++;
-	}
-	else 
-	{
-		_new = reusable;
-		reusable = reusable->right;
-		_new->left = _new->right = NULL;
-	}
+	typedef struct QuakeHeapNode<T>* pnode;
+	pnode _new = new QuakeHeapNode<T>();
 	_new->rank = 0;
 	return _new;
 }
-pnode ofrank[100]; // Used for intermediary storage during pop
-struct QuakeHeap
+template<class T> struct quake
 {
-	pnode root;
-	int sz;
+	typedef struct QuakeHeapNode<T>* pnode;
+	typedef struct QuakeNode<T>* pvalue;
+	pnode root = nullptr;
+	int sz = 0;
 	int am[MXRANK]; // Stores the amount of nodes of each rank
-	int mxrank;
-	QuakeHeap() // Initialise
+	int mxrank = 0;
+	pnode ofrank[MXRANK]; // Used for intermediary storage during pop
+	quake() // Initialise
 	{
-		root = NULL;
+		root = nullptr;
 		sz = 0;
 		for (int i = 0; i < MXRANK; i++) am[i] = 0;
+		std::fill_n(ofrank, MXRANK, nullptr);
 	}
 	// Auxilary functions
 	int size()
@@ -75,13 +65,13 @@ struct QuakeHeap
 	{
 		return !sz;
 	}
-	int top()
+	T top()
 	{
 		return root->val->val;
 	}
 	void insertIntoHeap(pnode a, pnode &root) // Inserts a into the heap rooted at root
 	{
-		a->par = NULL;
+		a->par = nullptr;
 		if (!root) // Only node in the heap
 		{
 			root = a->l = a->r = a;
@@ -99,7 +89,7 @@ struct QuakeHeap
 	pnode mergetrees(pnode a, pnode b)
 	{
 		// Create a new node, c which will be the parent of a and b
-		pnode c = newnode();
+		pnode c = _quakenewnode<T>();
 		c->rank = a->rank+1;
 		am[c->rank]++; // One more node of this rank
 		c->left = a;
@@ -117,7 +107,7 @@ struct QuakeHeap
 		{
 			// Merge them
 			a = mergetrees(a, ofrank[a->rank]);
-			ofrank[a->rank-1] = NULL;
+			ofrank[a->rank-1] = nullptr;
 			// Try again
 			addNode(a);
 		}
@@ -127,7 +117,7 @@ struct QuakeHeap
 			ofrank[a->rank] = a;
 		}
 	}
-	void quake(pnode a, int hei) // Quake operation, remove all nodes of rank > hei
+	void quakeoperation(pnode a, int hei) // Quake operation, remove all nodes of rank > hei
 	{
 		if (a->rank <= hei)
 		{
@@ -139,8 +129,8 @@ struct QuakeHeap
 		else
 		{
 			// Recurse into both children
-			if (a->left) quake(a->left, hei);
-			if (a->right) quake(a->right, hei);
+			if (a->left) quakeoperation(a->left, hei);
+			if (a->right) quakeoperation(a->right, hei);
 			am[a->rank]--;
 			deletenode(a);
 		}
@@ -150,15 +140,17 @@ struct QuakeHeap
 	void push(pvalue val)
 	{
 		sz++;
-		pnode a = newnode();
+		pnode a = _quakenewnode<T>();
 		a->val = val;
 		val->inheap = a;
 		am[0]++; // Another node of rank 0
 		insertIntoHeap(a, root);
 	}
-	void push(int val)
+	pvalue push(T val)
 	{
-		push(newvaluenode(val));
+		pvalue _new = quakenewvaluenode(val);
+		push(_new);
+		return _new;
 	}
 	void merge(pnode a)
 	{
@@ -177,7 +169,7 @@ struct QuakeHeap
 		x->l = a;
 		if (a->val->val < root->val->val) root = a; // Update root if needed
 	}
-	void merge(QuakeHeap *a)
+	void merge(quake *a)
 	{
 		sz += a->sz;
 		merge(a->root);
@@ -190,7 +182,7 @@ struct QuakeHeap
 		sz--;
 		if (!sz)
 		{
-			root = NULL;
+			root = nullptr;
 			return;
 		}
 		mxrank = 0;
@@ -231,13 +223,13 @@ struct QuakeHeap
 			deletenode(b);
 		}
 		// Construct new heap
-		root = NULL;
+		root = nullptr;
 		for (int i = 0; i <= mxrank; i++)
 		{
 			if (ofrank[i])
 			{
 				insertIntoHeap(ofrank[i], root);
-				ofrank[i] = NULL;
+				ofrank[i] = nullptr;
 			}
 		}
 		// Check if any of the ranks fail the amount condition
@@ -247,12 +239,12 @@ struct QuakeHeap
 			{
 				// Remove all nodes with rank > i
 				pnode oldroot = root;
-				root = NULL;
+				root = nullptr;
 				a = oldroot;
 				do
 				{
 					pnode next = a->r;
-					quake(a, i);
+					quakeoperation(a, i);
 					a = next;
 				}
 				while (a != oldroot);
@@ -260,15 +252,15 @@ struct QuakeHeap
 			}
 		}
 	}
-	void decreasekey(pvalue a, int val)
+	void decreasekey(pvalue a, T val)
 	{
 		a->val = val;
 		pnode x = a->inheap;
 		if (x->par) // Needs to be cut from tree, reinserted
 		{
 			// Remove from parent
-			if (x->par->left == x) x->par->left = NULL;
-			else x->par->right = NULL;
+			if (x->par->left == x) x->par->left = nullptr;
+			else x->par->right = nullptr;
 			// Reinsert into heap
 			insertIntoHeap(x, root);
 		} 

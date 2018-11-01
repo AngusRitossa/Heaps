@@ -1,28 +1,22 @@
 // Pairing Heap with push, pop, erase, top (minimum), merge & decrease key
-typedef struct PairingNode* pnode;
-#define MAXN 1000000
-struct PairingNode
+template<class T> struct PairingNode
 {
-	int val; // Value of the node
+	typedef struct PairingNode<T>* pnode;
+	T val; // Value of the node
 	pnode child, left, right; // Point to leftmost child, left sibling and right sibling
 	// If a node is the leftmost child, left points to the parent.
 };
-namespace pairingheapalloc
+template<class T> PairingNode<T>* _pairingnewnode(T val)
 {
-// Nodes are allocated from this array
-PairingNode _heap[MAXN]; 
-int _heapallocupto;
-pnode newnode(int val)
-{
-	pnode _new = _heap + _heapallocupto++; // Dynamic allocation is slow ... this is much faster
-	//pnode _new = new PairingNode(); // Other method of allocating memory
+	typedef struct PairingNode<T>* pnode;
+	pnode _new = new PairingNode<T>(); // Other method of allocating memory
 	_new->val = val;
 	return _new;
 }
-}
-struct PairingHeap
+template<class T> struct pairing
 {
-	pnode root; // Pointer to root
+	typedef struct PairingNode<T>* pnode;
+	pnode root = 0; // Pointer to root
 	int sz = 0; // Number of elements in the heap
 	// Auxiliary functions
 	int size()
@@ -33,7 +27,7 @@ struct PairingHeap
 	{
 		return !sz;
 	}
-	int top() // Minimum value
+	T top() // Minimum value
 	{
 		return root->val;
 	}
@@ -56,7 +50,7 @@ struct PairingHeap
 		b->left = a;
 		return a;
 	}
-	void merge(PairingHeap *a) // Merges a heap into this heap
+	void merge(pairing *a) // Merges a heap into this heap
 	{
 		sz += a->sz;
 		root = merge(root, a->root);
@@ -83,10 +77,11 @@ struct PairingHeap
 			_new->left = root;
 		}
 	}
-	void push(int val) // Inserts an element into the heap
+	pnode push(T val) // Inserts an element into the heap
 	{
-		pnode _new = pairingheapalloc::newnode(val);
+		pnode _new = _pairingnewnode<T>(val);
 		push(_new);
+		return _new;
 	}
 	pnode recursivemerge(pnode a) // Helps with the pop function. First merges pairs of trees, then merges the pairs into one tree
 	{
@@ -100,9 +95,9 @@ struct PairingHeap
 	{
 		sz--;
 		root = recursivemerge(root->child);
-		if (root) root->right = NULL;
+		if (root) root->right = nullptr;
 	}
-	void decreasekey(pnode a, int val)
+	void decreasekey(pnode a, T val)
 	{
 		a->val = val;
 		if (a == root) return;
@@ -110,14 +105,14 @@ struct PairingHeap
 		{
 			a->left->child = a->right;
 			if (a->right) a->right->left = a->left;
-			a->left = a->right = NULL;
+			a->left = a->right = nullptr;
 			root = merge(root, a);
 		}
 		else
 		{
 			a->left->right = a->right;
 			if (a->right) a->right->left = a->left;
-			a->left = a->right = NULL;
+			a->left = a->right = nullptr;
 			root = merge(root, a);
 		}
 	}
